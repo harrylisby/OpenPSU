@@ -8,6 +8,10 @@ Adafruit_MCP4725 dac;
 ADS1115 adc(0x48);
 
 const int alertReadyPin = 2;
+float targetVoltage = 0;
+float currentVoltage = 0;
+int voltsDigital = 0;
+bool runOnce = true;
 
 void setup(void) {
   Wire.begin();
@@ -27,89 +31,32 @@ void setup(void) {
 void pollAlertReadyPin() {
   for (uint32_t i = 0; i<100000; i++)
     if (!digitalRead(alertReadyPin)) return;
-   Serial.println("Failed to wait for AlertReadyPin, it's stuck high!");
+    Serial.println("Failed to wait for AlertReadyPin, it's stuck high!");
 }
 
 void loop(void) {
-    dac.setVoltage(2048, false);
+  // The below method sets the mux and gets a reading.
+  adc.setMultiplexer(ADS1115_MUX_P0_NG);
+  adc.triggerConversion();
+  pollAlertReadyPin();
+  currentVoltage = 6.035*(adc.getMilliVolts(false));
+  Serial.print(voltsDigital);Serial.print(": ");
+  Serial.println(currentVoltage);
+  targetVoltage = 15000.00;
 
-    // The below method sets the mux and gets a reading.
-    adc.setMultiplexer(ADS1115_MUX_P0_NG);
-    adc.triggerConversion();
-    pollAlertReadyPin();
-    Serial.print("A0: "); Serial.print(adc.getMilliVolts(false)); Serial.print("mV\t");
+  if(voltsDigital>4095)voltsDigital=4095;
+  if(voltsDigital<0)voltsDigital=0;
 
-    adc.setMultiplexer(ADS1115_MUX_P1_NG);
-    adc.triggerConversion();
-    pollAlertReadyPin();
-    Serial.print("A1: "); Serial.print(adc.getMilliVolts(false)); Serial.print("mV\t");
+  if(runOnce){
+    dac.setVoltage(0,false);
+    runOnce=false;
+  }
 
-    adc.setMultiplexer(ADS1115_MUX_P2_NG);
-    adc.triggerConversion();
-    pollAlertReadyPin();
-    Serial.print("A2: "); Serial.print(adc.getMilliVolts(false)); Serial.print("mV\t");
-
-    adc.setMultiplexer(ADS1115_MUX_P3_NG);
-    // Do conversion polling via I2C on this last reading:
-    Serial.print("A3: "); Serial.print(adc.getMilliVolts(true)); Serial.print("mV");
-
-    Serial.println(digitalRead(alertReadyPin));
-
-    delay(1);
-
+  if(targetVoltage<currentVoltage){
+    voltsDigital--;
+    dac.setVoltage(voltsDigital, false);
+  }else if(targetVoltage>currentVoltage){
+    voltsDigital++;
+    dac.setVoltage(voltsDigital, false);
+  }
 }
-
-/*
-
-void setup()
-{
-Wire.begin();
-
-Serial.begin(115200);
-while (!Serial);             // Leonardo: wait for serial monitor
-Serial.println("\nI2C Scanner");
-}
-
-
-void loop()
-{
-byte error, address;
-int nDevices;
-
-Serial.println("Scanning...");
-
-nDevices = 0;
-for(address = 1; address < 127; address++ )
-{
-// The i2c_scanner uses the return value of
-// the Write.endTransmisstion to see if
-// a device did acknowledge to the address.
-Wire.beginTransmission(address);
-error = Wire.endTransmission();
-
-if (error == 0)
-{
-Serial.print("I2C device found at address 0x");
-if (address<16)
-Serial.print("0");
-Serial.print(address,HEX);
-Serial.println("  !");
-
-nDevices++;
-}
-else if (error==4)
-{
-Serial.print("Unknown error at address 0x");
-if (address<16)
-Serial.print("0");
-Serial.println(address,HEX);
-}
-}
-if (nDevices == 0)
-Serial.println("No I2C devices found\n");
-else
-Serial.println("done\n");
-
-delay(5000);           // wait 5 seconds for next scan
-}
-*/
