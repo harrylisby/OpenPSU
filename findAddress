@@ -1,6 +1,6 @@
 //Use this code to find the addresses of your DACs and ADCs
 #include <Arduino.h>
-#include <Wire.
+#include <Wire.h>
 
 void setup()
 {

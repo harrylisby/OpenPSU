@@ -3,15 +3,23 @@
 #include <Wire.h>
 #include <Adafruit_MCP4725.h>
 #include <ADS1115.h>
+#include <PID_v1.h>
 
+//DAC/ADC Start
 Adafruit_MCP4725 dac;
 ADS1115 adc(0x48);
+
+//PID_v1
+double Setpoint, Input, Output;
+double kp=0.2300, ki=0.1000,kd=0.0000;
+PID psuPID(&Input,&Output,&Setpoint,kp,ki,kd,DIRECT);
 
 const int alertReadyPin = 2;
 float targetVoltage = 0;
 float currentVoltage = 0;
-int voltsDigital = 0;
+double voltsDigital = 0;
 bool runOnce = true;
+int32_t lastTime;
 
 void setup(void) {
   Wire.begin();
@@ -25,6 +33,11 @@ void setup(void) {
   adc.setGain(ADS1115_PGA_6P144);
   pinMode(alertReadyPin,INPUT_PULLUP);
   adc.setConversionReadyPinMode();
+
+  Setpoint = 5000;
+  psuPID.SetOutputLimits(-127,127);
+  psuPID.SetSampleTime(1);
+  psuPID.SetMode(AUTOMATIC);
 
 }
 
@@ -40,23 +53,30 @@ void loop(void) {
   adc.triggerConversion();
   pollAlertReadyPin();
   currentVoltage = 6.035*(adc.getMilliVolts(false));
-  Serial.print(voltsDigital);Serial.print(": ");
-  Serial.println(currentVoltage);
-  targetVoltage = 15000.00;
+  if((millis()-lastTime)>=1000){
+    lastTime=millis();
+    Serial.print(voltsDigital);Serial.print(": ");
+    Serial.print(currentVoltage); Serial.print(": "); Serial.println(Output);
+  }
 
-  if(voltsDigital>4095)voltsDigital=4095;
-  if(voltsDigital<0)voltsDigital=0;
+  Input = currentVoltage;
+  psuPID.Compute();
 
   if(runOnce){
     dac.setVoltage(0,false);
     runOnce=false;
   }
-
+/*
   if(targetVoltage<currentVoltage){
-    voltsDigital--;
+    voltsDigital+=Output;
     dac.setVoltage(voltsDigital, false);
   }else if(targetVoltage>currentVoltage){
-    voltsDigital++;
+    voltsDigital+=Output;
     dac.setVoltage(voltsDigital, false);
   }
+*/
+  voltsDigital+=Output;
+  if(voltsDigital>4095)voltsDigital=4095;
+  if(voltsDigital<0)voltsDigital=0;
+  dac.setVoltage(voltsDigital, false);
 }
