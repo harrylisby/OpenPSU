@@ -21,6 +21,8 @@ incremental encoder with pushbutton for control and configuration.
 
 Also uses de PID_v1 library which allows fast transition between set voltages,
 working modes and changing loads [output stability].
+
+********************************************************************************
 */
 
 //LCD start
