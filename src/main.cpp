@@ -11,12 +11,13 @@ ADS1115 adc(0x48);
 
 //PID_v1
 double Setpoint, Input, Output;
-double kp=0.2300, ki=0.1000,kd=0.0000;
-PID psuPID(&Input,&Output,&Setpoint,kp,ki,kd,DIRECT);
+double kpV=0.2250, kiV=0.1000,kdV=0.0000;
+double kpI=20.7500, kiI=4.5000,kdI=0.0000;
+PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
 const int alertReadyPin = 2;
-float targetVoltage = 0;
-float currentVoltage = 0;
+float targetVoltage = 0, targetCurrent = 0;
+float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
 bool runOnce = true;
 int32_t lastTime;
@@ -34,11 +35,14 @@ void setup(void) {
   pinMode(alertReadyPin,INPUT_PULLUP);
   adc.setConversionReadyPinMode();
 
-  Setpoint = 5000;
+  targetVoltage = 25000;
+  targetCurrent = 100;
+
   psuPID.SetOutputLimits(-127,127);
   psuPID.SetSampleTime(1);
   psuPID.SetMode(AUTOMATIC);
 
+  dac.setVoltage(0,false); //Start with output low
 }
 
 void pollAlertReadyPin() {
@@ -53,22 +57,32 @@ void loop(void) {
   adc.triggerConversion();
   pollAlertReadyPin();
   currentVoltage = 6.035*(adc.getMilliVolts(false));
+
+  adc.setMultiplexer(ADS1115_MUX_P1_NG);
+  adc.triggerConversion();
+  pollAlertReadyPin();
+  currentCurrent = (adc.getMilliVolts(false));
+
+  if(currentCurrent>targetCurrent){
+    psuPID.SetTunings(kpI, kiI, kdI);
+    Input = currentCurrent;
+    Setpoint = targetCurrent;
+  }else{
+    psuPID.SetTunings(kpV, kiV, kdV);
+    Input = currentVoltage;
+    Setpoint = targetVoltage;
+  }
+
+  psuPID.Compute();
+  voltsDigital+=Output;
+  voltsDigital=constrain(voltsDigital, 0, 4095);
+  dac.setVoltage(voltsDigital, false);
+
   if((millis()-lastTime)>=1000){
     lastTime=millis();
     Serial.print(voltsDigital);Serial.print(": ");
-    Serial.print(currentVoltage); Serial.print(": "); Serial.println(Output);
+    Serial.print(currentVoltage); Serial.print(": ");
+    Serial.print(Output); Serial.print(": ");
+    Serial.print(currentCurrent); Serial.println();
   }
-
-  Input = currentVoltage;
-  psuPID.Compute();
-
-  if(runOnce){
-    dac.setVoltage(0,false);
-    runOnce=false;
-  }
-
-  voltsDigital+=Output;
-  if(voltsDigital>4095)voltsDigital=4095;
-  if(voltsDigital<0)voltsDigital=0;
-  dac.setVoltage(voltsDigital, false);
 }
