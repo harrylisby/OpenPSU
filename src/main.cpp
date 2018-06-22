@@ -66,15 +66,7 @@ void loop(void) {
     dac.setVoltage(0,false);
     runOnce=false;
   }
-/*
-  if(targetVoltage<currentVoltage){
-    voltsDigital+=Output;
-    dac.setVoltage(voltsDigital, false);
-  }else if(targetVoltage>currentVoltage){
-    voltsDigital+=Output;
-    dac.setVoltage(voltsDigital, false);
-  }
-*/
+
   voltsDigital+=Output;
   if(voltsDigital>4095)voltsDigital=4095;
   if(voltsDigital<0)voltsDigital=0;
