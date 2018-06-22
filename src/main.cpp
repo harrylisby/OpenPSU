@@ -122,20 +122,21 @@ void loop(void) {
     Serial.print(Output); Serial.print(": ");
     Serial.print(currentCurrent); Serial.println();
     */
-    lcd.clear();
+    //lcd.clear();
+    lcd.setCursor(0, 0);
     lcd.print("OpenPSU - HarryLisby");
     lcd.setCursor(0, 2);
     lcd.print("V: ");
     lcd.print(currentVoltage/1000);
-    lcd.print("V");
+    lcd.print("V  ");
     lcd.setCursor(11, 2);
     lcd.print("I: ");
     lcd.print(currentCurrent/1000);
-    lcd.print("A");
+    lcd.print("A ");
     lcd.setCursor(0, 3);
     lcd.print("P: ");
     lcd.print(((currentVoltage/1000)*(currentCurrent/1000)));
-    lcd.print("W");
+    lcd.print("W  ");
     lcd.setCursor(11, 3);
     lcd.print("M: ");
     lcd.print(mode);
