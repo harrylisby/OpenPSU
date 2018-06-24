@@ -45,7 +45,7 @@ PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 volatile int32_t encoderPos;
 bool newRead,lastRead;
 
-const int alertReadyPin = 2;
+const int alertReadyPin = 4;
 float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
@@ -87,7 +87,7 @@ void setup(void) {
   lcd.begin();                      // initialize the lcd
   lcd.backlight();
 
-  targetVoltage = 25000;
+  targetVoltage = 24000;
   targetCurrent = 100;
 
   psuPID.SetOutputLimits(-511,511);
