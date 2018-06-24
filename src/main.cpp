@@ -43,7 +43,7 @@ PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 #define pinB 3
 #define pinP 5
 volatile int32_t encoderPos;
-bool newRead,lastRead;
+bool newRead,lastRead,increaseFlag,decreaseFlag,paramenterSelect;
 
 #define alertReadyPin 4
 float targetVoltage = 0, targetCurrent = 0;
@@ -59,8 +59,10 @@ void reader(){
   if((lastRead == LOW)&&(newRead == HIGH)){
     if(digitalRead(pinB)==LOW){
       encoderPos++;
+      increaseFlag=true;
     }else{
       encoderPos--;
+      decreaseFlag=true;
     }
   }
   lastRead = digitalRead(pinA);
@@ -87,8 +89,8 @@ void setup(void) {
   lcd.begin();                      // initialize the lcd
   lcd.backlight();
 
-  targetVoltage = 24000;
-  targetCurrent = 250;
+  targetVoltage = 0;
+  targetCurrent = 0;
 
   psuPID.SetOutputLimits(-511,511);
   psuPID.SetSampleTime(1);
@@ -130,6 +132,30 @@ void loop(void) {
     Input = currentVoltage;
     Setpoint = targetVoltage;
     mode = "CV";
+  }
+
+  if(digitalRead(pinP)==LOW){
+    paramenterSelect=!paramenterSelect;
+    Serial.println(paramenterSelect);
+    delay(500);  //Find a way to antibounce and prevent spam detection
+  }
+  if((increaseFlag)&&!(paramenterSelect)){
+    targetVoltage+=100;
+    increaseFlag=false;
+    Serial.println(targetVoltage);
+  }else if((increaseFlag)&&(paramenterSelect)){
+    targetCurrent+=10;
+    increaseFlag=false;
+    Serial.println(targetCurrent);
+  }
+  if((decreaseFlag)&&!(paramenterSelect)){
+    targetVoltage-=100;
+    decreaseFlag=false;
+    Serial.println(targetVoltage);
+  }else if((decreaseFlag)&&(paramenterSelect)){
+    targetCurrent-=10;
+    decreaseFlag=false;
+    Serial.println(targetCurrent);
   }
 
   psuPID.Compute();
