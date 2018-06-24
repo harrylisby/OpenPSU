@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "Adafruit_MCP4725.h"
-#include "ADS1115.h"
+#include <Adafruit_MCP4725.h>
+#include <ADS1115.h>
 #include "PID_v1.h"
 #include "LiquidCrystal_I2C.h"
 #include "digitalWriteFast.h"
@@ -96,6 +96,8 @@ void setup(void) {
 
   dac.setVoltage(0,false); //Start with output low
 
+  pinMode(pinA,INPUT_PULLUP);
+  pinMode(pinB, INPUT_PULLUP);
   enableInterrupt(pinA, reader, CHANGE);
 }
 
