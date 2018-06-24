@@ -4,6 +4,8 @@
 #include <ADS1115.h>
 #include <PID_v1.h>
 #include <LiquidCrystal_I2C.h>
+#include <digitalWriteFast.h>
+#include <EnableInterrupt.h>
 
 /*
 ********************************************************************************
@@ -37,6 +39,12 @@ double kpV=0.2250, kiV=0.1000,kdV=0.0000;
 double kpI=20.7500, kiI=4.5000,kdI=0.0000;
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
+//Encoder
+#define pinA 2
+#define pinB 3
+volatile int32_t encoderPos;
+bool newRead,lastRead;
+
 const int alertReadyPin = 2;
 float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
@@ -45,6 +53,18 @@ bool runOnce = true;
 int32_t lastTime;
 
 String mode = "CV";
+
+void reader(){
+  newRead = digitalReadFast(pinA);
+  if((lastRead == LOW)&&(newRead == HIGH)){
+    if(digitalReadFast(pinB)==LOW){
+      encoderPos++;
+    }else{
+      encoderPos--;
+    }
+  }
+  lastRead = digitalReadFast(pinA);
+}
 
 void setup(void) {
   Wire.begin();
@@ -75,6 +95,8 @@ void setup(void) {
   psuPID.SetMode(AUTOMATIC);
 
   dac.setVoltage(0,false); //Start with output low
+
+  enableInterrupt(pinA, reader, CHANGE);
 }
 
 void pollAlertReadyPin() {
