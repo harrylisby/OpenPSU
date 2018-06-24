@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <Adafruit_MCP4725.h>
-#include <ADS1115.h>
-#include <PID_v1.h>
-#include <LiquidCrystal_I2C.h>
-#include <digitalWriteFast.h>
-#include <EnableInterrupt.h>
+#include "Adafruit_MCP4725.h"
+#include "ADS1115.h"
+#include "PID_v1.h"
+#include "LiquidCrystal_I2C.h"
+#include "digitalWriteFast.h"
+#include "EnableInterrupt.h"
 
 /*
 ********************************************************************************
@@ -39,7 +39,7 @@ double kpV=0.2250, kiV=0.1000,kdV=0.0000;
 double kpI=20.7500, kiI=4.5000,kdI=0.0000;
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
-//Encoder
+//Encoder configuration
 #define pinA 2
 #define pinB 3
 volatile int32_t encoderPos;
