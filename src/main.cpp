@@ -1,10 +1,10 @@
-
 #include <Arduino.h>
 #include <Wire.h>
 #include <Adafruit_MCP4725.h>
 #include <ADS1115.h>
-#include <PID_v1.h>
-#include <LiquidCrystal_I2C.h>
+#include "PID_v1.h"
+#include "LiquidCrystal_I2C.h"
+#include "EnableInterrupt.h"
 
 /*
 ********************************************************************************
@@ -21,6 +21,8 @@ incremental encoder with pushbutton for control and configuration.
 
 Also uses de PID_v1 library which allows fast transition between set voltages,
 working modes and changing loads [output stability].
+
+********************************************************************************
 */
 
 //LCD start
@@ -36,7 +38,14 @@ double kpV=0.2250, kiV=0.1000,kdV=0.0000;
 double kpI=20.7500, kiI=4.5000,kdI=0.0000;
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
-const int alertReadyPin = 2;
+//Encoder configuration
+#define pinA 2
+#define pinB 3
+#define pinP 5
+volatile int32_t encoderPos;
+bool newRead,lastRead,increaseFlag,decreaseFlag,paramenterSelect;
+
+#define alertReadyPin 4
 float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
@@ -44,6 +53,20 @@ bool runOnce = true;
 int32_t lastTime;
 
 String mode = "CV";
+
+void reader(){
+  newRead = digitalRead(pinA);
+  if((lastRead == LOW)&&(newRead == HIGH)){
+    if(digitalRead(pinB)==LOW){
+      encoderPos++;
+      increaseFlag=true;
+    }else{
+      encoderPos--;
+      decreaseFlag=true;
+    }
+  }
+  lastRead = digitalRead(pinA);
+}
 
 void setup(void) {
   Wire.begin();
@@ -66,14 +89,19 @@ void setup(void) {
   lcd.begin();                      // initialize the lcd
   lcd.backlight();
 
-  targetVoltage = 25000;
-  targetCurrent = 100;
+  targetVoltage = 0;
+  targetCurrent = 0;
 
   psuPID.SetOutputLimits(-511,511);
   psuPID.SetSampleTime(1);
   psuPID.SetMode(AUTOMATIC);
 
   dac.setVoltage(0,false); //Start with output low
+
+  pinMode(pinA,INPUT_PULLUP);
+  pinMode(pinB, INPUT_PULLUP);
+  pinMode(pinP,INPUT_PULLUP);
+  enableInterrupt(pinA, reader, CHANGE);
 }
 
 void pollAlertReadyPin() {
@@ -106,6 +134,30 @@ void loop(void) {
     mode = "CV";
   }
 
+  if(digitalRead(pinP)==LOW){
+    paramenterSelect=!paramenterSelect;
+    Serial.println(paramenterSelect);
+    delay(500);  //Find a way to antibounce and prevent spam detection
+  }
+  if((increaseFlag)&&!(paramenterSelect)){
+    targetVoltage+=100;
+    increaseFlag=false;
+    Serial.println(targetVoltage);
+  }else if((increaseFlag)&&(paramenterSelect)){
+    targetCurrent+=10;
+    increaseFlag=false;
+    Serial.println(targetCurrent);
+  }
+  if((decreaseFlag)&&!(paramenterSelect)){
+    targetVoltage-=100;
+    decreaseFlag=false;
+    Serial.println(targetVoltage);
+  }else if((decreaseFlag)&&(paramenterSelect)){
+    targetCurrent-=10;
+    decreaseFlag=false;
+    Serial.println(targetCurrent);
+  }
+
   psuPID.Compute();
   voltsDigital+=Output;                 //Sums PID output to current output
   voltsDigital=constrain(voltsDigital, 0, 4095);
@@ -114,26 +166,29 @@ void loop(void) {
   if((millis()-lastTime)>=500){
     lastTime=millis();
     //Uncomment next section for serial debugging
-    /*
-    Serial.print(voltsDigital);Serial.print(": ");
-    Serial.print(currentVoltage); Serial.print(": ");
-    Serial.print(Output); Serial.print(": ");
-    Serial.print(currentCurrent); Serial.println();
-    */
-    lcd.clear();
+
+    //Serial.print(voltsDigital);Serial.print(": ");
+    //Serial.print(currentVoltage); Serial.print(": ");
+    //Serial.println(Output); //Serial.print(": ");
+    //Serial.print(currentCurrent); Serial.println();
+    Serial.println(encoderPos);
+    Serial.println(digitalRead(pinP));
+
+    //lcd.clear();
+    lcd.setCursor(0, 0);
     lcd.print("OpenPSU - HarryLisby");
     lcd.setCursor(0, 2);
     lcd.print("V: ");
     lcd.print(currentVoltage/1000);
-    lcd.print("V");
+    lcd.print("V  ");
     lcd.setCursor(11, 2);
     lcd.print("I: ");
     lcd.print(currentCurrent/1000);
-    lcd.print("A");
+    lcd.print("A ");
     lcd.setCursor(0, 3);
     lcd.print("P: ");
     lcd.print(((currentVoltage/1000)*(currentCurrent/1000)));
-    lcd.print("W");
+    lcd.print("W  ");
     lcd.setCursor(11, 3);
     lcd.print("M: ");
     lcd.print(mode);
