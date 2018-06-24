@@ -38,7 +38,7 @@ double kpV=0.2250, kiV=0.1000,kdV=0.0000;
 double kpI=20.7500, kiI=4.5000,kdI=0.0000;
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
-const int alertReadyPin = 2;
+const int alertReadyPin = 4;
 float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
