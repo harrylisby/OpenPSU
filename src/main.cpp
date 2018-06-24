@@ -4,7 +4,6 @@
 #include <ADS1115.h>
 #include "PID_v1.h"
 #include "LiquidCrystal_I2C.h"
-#include "digitalWriteFast.h"
 #include "EnableInterrupt.h"
 
 /*
@@ -42,10 +41,11 @@ PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 //Encoder configuration
 #define pinA 2
 #define pinB 3
+#define pinP 5
 volatile int32_t encoderPos;
 bool newRead,lastRead;
 
-const int alertReadyPin = 4;
+#define alertReadyPin 4
 float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
@@ -55,15 +55,15 @@ int32_t lastTime;
 String mode = "CV";
 
 void reader(){
-  newRead = digitalReadFast(pinA);
+  newRead = digitalRead(pinA);
   if((lastRead == LOW)&&(newRead == HIGH)){
-    if(digitalReadFast(pinB)==LOW){
+    if(digitalRead(pinB)==LOW){
       encoderPos++;
     }else{
       encoderPos--;
     }
   }
-  lastRead = digitalReadFast(pinA);
+  lastRead = digitalRead(pinA);
 }
 
 void setup(void) {
@@ -88,7 +88,7 @@ void setup(void) {
   lcd.backlight();
 
   targetVoltage = 24000;
-  targetCurrent = 100;
+  targetCurrent = 250;
 
   psuPID.SetOutputLimits(-511,511);
   psuPID.SetSampleTime(1);
@@ -98,6 +98,7 @@ void setup(void) {
 
   pinMode(pinA,INPUT_PULLUP);
   pinMode(pinB, INPUT_PULLUP);
+  pinMode(pinP,INPUT_PULLUP);
   enableInterrupt(pinA, reader, CHANGE);
 }
 
@@ -139,12 +140,14 @@ void loop(void) {
   if((millis()-lastTime)>=500){
     lastTime=millis();
     //Uncomment next section for serial debugging
-    /*
-    Serial.print(voltsDigital);Serial.print(": ");
-    Serial.print(currentVoltage); Serial.print(": ");
-    Serial.print(Output); Serial.print(": ");
-    Serial.print(currentCurrent); Serial.println();
-    */
+
+    //Serial.print(voltsDigital);Serial.print(": ");
+    //Serial.print(currentVoltage); Serial.print(": ");
+    //Serial.println(Output); //Serial.print(": ");
+    //Serial.print(currentCurrent); Serial.println();
+    Serial.println(encoderPos);
+    Serial.println(digitalRead(pinP));
+
     //lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("OpenPSU - HarryLisby");
