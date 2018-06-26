@@ -227,3 +227,35 @@ void loop(void) {
 
   }
 }
+
+int adcRead(byte channel,double scaler = 1){
+  int read = 0;
+  switch (channel) {
+    case 0:
+      adc.setMultiplexer(ADS1115_MUX_P0_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 1:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 2:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 3:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+  }
+
+  return read;
+}
