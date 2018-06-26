@@ -44,6 +44,10 @@ PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 #define pinP 5
 volatile int32_t encoderPos;
 bool newRead,lastRead,increaseFlag,decreaseFlag,paramenterSelect;
+byte oldButtonState = HIGH;  // assume switch open because of pull-up resistor
+const unsigned long debounceTime = 10;  // milliseconds
+unsigned long buttonPressTime;  // when the switch last changed state
+bool buttonPressed = 0; // a flag variable
 
 #define alertReadyPin 4
 float targetVoltage = 0, targetCurrent = 0;
@@ -72,7 +76,7 @@ void setup(void) {
   Wire.begin();
   Serial.begin(115200);
   Serial.println();Serial.println();
-  Serial.println("OpenPSU Version: b0.1");
+  Serial.println("OpenPSU Version: b0.2");
   Serial.print("Made by Harry Lisby - ");
   Serial.println("github.com/harrylisby/OpenPSU");
   Serial.println();Serial.println();
@@ -108,6 +112,26 @@ void pollAlertReadyPin() {
   for (uint32_t i = 0; i<100000; i++)
     if (!digitalRead(alertReadyPin)) return;
     Serial.println("Failed to wait for AlertReadyPin, it's stuck high!");
+}
+
+//parameter should be (pinP,oldButtonState)
+int buttonWatcher(int buttonPin, bool oldState){
+  byte buttonState = digitalRead(buttonPin);
+  if (buttonState != oldState){
+    if (millis() - buttonPressTime >= debounceTime){ // debounce adjusted at 10ms
+      buttonPressTime = millis();  // when we closed the switch
+      oldState = buttonState;  // remember for next time
+      if (buttonState == LOW){
+        Serial.println("Button pressed"); // DEBUGGING: print that button has been closed
+        buttonPressed = 1;
+      }
+      else {
+        Serial.println("Button released"); // DEBUGGING: print that button has been opened
+        buttonPressed = 0;
+      }
+    }
+  }
+  return buttonPressed;
 }
 
 void loop(void) {
@@ -167,16 +191,24 @@ void loop(void) {
     lastTime=millis();
     //Uncomment next section for serial debugging
 
-    //Serial.print(voltsDigital);Serial.print(": ");
+    Serial.print(voltsDigital);Serial.println(": ");
     //Serial.print(currentVoltage); Serial.print(": ");
     //Serial.println(Output); //Serial.print(": ");
     //Serial.print(currentCurrent); Serial.println();
-    Serial.println(encoderPos);
-    Serial.println(digitalRead(pinP));
+    //Serial.println(encoderPos);
+    //Serial.println(digitalRead(pinP));
 
     //lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("OpenPSU - HarryLisby");
+    lcd.setCursor(0, 1);
+    lcd.print("Vt: ");
+    lcd.print(targetVoltage/1000);
+    lcd.print("V  ");
+    lcd.setCursor(10, 1);
+    lcd.print("It: ");
+    lcd.print(targetCurrent/1000);
+    lcd.print("A ");
     lcd.setCursor(0, 2);
     lcd.print("V: ");
     lcd.print(currentVoltage/1000);
@@ -194,5 +226,4 @@ void loop(void) {
     lcd.print(mode);
 
   }
-
 }
