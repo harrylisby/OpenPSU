@@ -34,7 +34,7 @@ ADS1115 adc(0x48);
 
 //PID_v1
 double Setpoint, Input, Output;
-double kpV=0.2250, kiV=0.1000,kdV=0.0000;
+double kpV=0.2245, kiV=0.2500,kdV=0.0000;
 double kpI=20.7500, kiI=4.5000,kdI=0.0000;
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
@@ -190,10 +190,10 @@ void loop(void) {
   if((millis()-lastTime)>=500){
     lastTime=millis();
     //Uncomment next section for serial debugging
-
-    Serial.print(voltsDigital);Serial.println(": ");
+    //depending on the data you want to get
+    Serial.print(voltsDigital);Serial.print(": ");
     //Serial.print(currentVoltage); Serial.print(": ");
-    //Serial.println(Output); //Serial.print(": ");
+    Serial.println(Output); //Serial.println(": ");
     //Serial.print(currentCurrent); Serial.println();
     //Serial.println(encoderPos);
     //Serial.println(digitalRead(pinP));
