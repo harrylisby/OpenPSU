@@ -134,17 +134,85 @@ int buttonWatcher(int buttonPin, bool oldState){
   return buttonPressed;
 }
 
+int adcRead(byte channel,double scaler = 1){
+  int read = 0;
+  switch (channel) {
+    case 0:
+      adc.setMultiplexer(ADS1115_MUX_P0_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 1:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 2:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 3:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+  }
+  return read;
+}
+
+void serialDebugging(void){
+  //Uncomment next section for serial debugging
+  //depending on the data you want to get
+  Serial.print(voltsDigital);Serial.print(": ");
+  //Serial.print(currentVoltage); Serial.print(": ");
+  Serial.println(Output); //Serial.println(": ");
+  //Serial.print(currentCurrent); Serial.println();
+  //Serial.println(encoderPos);
+  //Serial.println(digitalRead(pinP));
+
+}
+
+void writeLCD(void){
+  lcd.setCursor(0, 0);
+  lcd.print("OpenPSU - HarryLisby");
+  lcd.setCursor(0, 1);
+  lcd.print("Vt: ");
+  lcd.print(targetVoltage/1000);
+  lcd.print("V");
+  lcd.setCursor(10, 1);
+  lcd.print("It: ");
+  lcd.print(targetCurrent/1000);
+  lcd.print("A");
+  lcd.setCursor(0, 2);
+  lcd.print("V: ");
+  lcd.print(currentVoltage/1000);
+  lcd.print("V  ");
+  lcd.setCursor(11, 2);
+  lcd.print("I: ");
+  lcd.print(currentCurrent/1000);
+  lcd.print("A ");
+  lcd.setCursor(0, 3);
+  lcd.print("P: ");
+  lcd.print(((currentVoltage/1000)*(currentCurrent/1000)));
+  lcd.print("W  ");
+  lcd.setCursor(11, 3);
+  lcd.print("M: ");
+  lcd.print(mode);
+}
+
+void calValues(void){
+
+}
+
 void loop(void) {
-  // The below method sets the mux for channel one [volts]
-  adc.setMultiplexer(ADS1115_MUX_P0_NG);
-  adc.triggerConversion();
-  pollAlertReadyPin();
-  currentVoltage = 6.035*(adc.getMilliVolts(false));
-  // The below method sets the mux for channel two [current]
-  adc.setMultiplexer(ADS1115_MUX_P1_NG);
-  adc.triggerConversion();
-  pollAlertReadyPin();
-  currentCurrent = (adc.getMilliVolts(false));
+
+  currentVoltage = adcRead(0,6.035); // This method sets the mux for channel one [volts]
+  currentCurrent = adcRead(1);  // This method sets the mux for channel two [current]
 
   if(currentCurrent>targetCurrent){     //If current is above the setpoint
     psuPID.SetTunings(kpI, kiI, kdI);
@@ -189,73 +257,7 @@ void loop(void) {
 
   if((millis()-lastTime)>=500){
     lastTime=millis();
-    //Uncomment next section for serial debugging
-    //depending on the data you want to get
-    Serial.print(voltsDigital);Serial.print(": ");
-    //Serial.print(currentVoltage); Serial.print(": ");
-    Serial.println(Output); //Serial.println(": ");
-    //Serial.print(currentCurrent); Serial.println();
-    //Serial.println(encoderPos);
-    //Serial.println(digitalRead(pinP));
-
-    //lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("OpenPSU - HarryLisby");
-    lcd.setCursor(0, 1);
-    lcd.print("Vt: ");
-    lcd.print(targetVoltage/1000);
-    lcd.print("V  ");
-    lcd.setCursor(10, 1);
-    lcd.print("It: ");
-    lcd.print(targetCurrent/1000);
-    lcd.print("A ");
-    lcd.setCursor(0, 2);
-    lcd.print("V: ");
-    lcd.print(currentVoltage/1000);
-    lcd.print("V  ");
-    lcd.setCursor(11, 2);
-    lcd.print("I: ");
-    lcd.print(currentCurrent/1000);
-    lcd.print("A ");
-    lcd.setCursor(0, 3);
-    lcd.print("P: ");
-    lcd.print(((currentVoltage/1000)*(currentCurrent/1000)));
-    lcd.print("W  ");
-    lcd.setCursor(11, 3);
-    lcd.print("M: ");
-    lcd.print(mode);
-
+    serialDebugging();
+    writeLCD();
   }
-}
-
-int adcRead(byte channel,double scaler = 1){
-  int read = 0;
-  switch (channel) {
-    case 0:
-      adc.setMultiplexer(ADS1115_MUX_P0_NG);
-      adc.triggerConversion();
-      pollAlertReadyPin();
-      read = scaler*(adc.getMilliVolts(false));
-      break;
-    case 1:
-      adc.setMultiplexer(ADS1115_MUX_P1_NG);
-      adc.triggerConversion();
-      pollAlertReadyPin();
-      read = scaler*(adc.getMilliVolts(false));
-      break;
-    case 2:
-      adc.setMultiplexer(ADS1115_MUX_P1_NG);
-      adc.triggerConversion();
-      pollAlertReadyPin();
-      read = scaler*(adc.getMilliVolts(false));
-      break;
-    case 3:
-      adc.setMultiplexer(ADS1115_MUX_P1_NG);
-      adc.triggerConversion();
-      pollAlertReadyPin();
-      read = scaler*(adc.getMilliVolts(false));
-      break;
-  }
-
-  return read;
 }
