@@ -42,7 +42,7 @@ PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 #define pinA 2
 #define pinB 3
 #define pinP 5
-volatile int32_t encoderPos;
+volatile int16_t encoderPos,incrementAmount,decreaseAmount;
 bool newRead,lastRead,increaseFlag,decreaseFlag,paramenterSelect;
 byte oldButtonState = HIGH;  // assume switch open because of pull-up resistor
 const unsigned long debounceTime = 10;  // milliseconds
@@ -63,9 +63,11 @@ void reader(){
   if((lastRead == LOW)&&(newRead == HIGH)){
     if(digitalRead(pinB)==LOW){
       encoderPos++;
+      incrementAmount+=1;
       increaseFlag=true;
     }else{
       encoderPos--;
+      decreaseAmount+=1;
       decreaseFlag=true;
     }
   }
@@ -181,13 +183,13 @@ void writeLCD(void){
   lcd.setCursor(0, 0);
   lcd.print("OpenPSU - HarryLisby");
   lcd.setCursor(0, 1);
-  lcd.print("Vt: ");
+  lcd.print("Vt:");
   lcd.print(targetVoltage/1000);
-  lcd.print("V");
-  lcd.setCursor(10, 1);
-  lcd.print("It: ");
+  lcd.print("V ");
+  lcd.setCursor(11, 1);
+  lcd.print("It:");
   lcd.print(targetCurrent/1000);
-  lcd.print("A");
+  lcd.print("A ");
   lcd.setCursor(0, 2);
   lcd.print("V: ");
   lcd.print(currentVoltage/1000);
@@ -232,20 +234,20 @@ void loop(void) {
     delay(500);  //Find a way to antibounce and prevent spam detection
   }
   if((increaseFlag)&&!(paramenterSelect)){
-    targetVoltage+=100;
+    targetVoltage+=(100*incrementAmount);
     increaseFlag=false;
     Serial.println(targetVoltage);
   }else if((increaseFlag)&&(paramenterSelect)){
-    targetCurrent+=10;
+    targetCurrent+=(10*incrementAmount);
     increaseFlag=false;
     Serial.println(targetCurrent);
   }
   if((decreaseFlag)&&!(paramenterSelect)){
-    targetVoltage-=100;
+    targetVoltage-=(100*decreaseAmount);
     decreaseFlag=false;
     Serial.println(targetVoltage);
   }else if((decreaseFlag)&&(paramenterSelect)){
-    targetCurrent-=10;
+    targetCurrent-=(10*decreaseAmount);
     decreaseFlag=false;
     Serial.println(targetCurrent);
   }
