@@ -48,12 +48,14 @@ byte oldButtonState = HIGH;  // assume switch open because of pull-up resistor
 const unsigned long debounceTime = 10;  // milliseconds
 unsigned long buttonPressTime;  // when the switch last changed state
 bool buttonPressed = 0; // a flag variable
+bool debounceFlag=true;
+double debounceLastTime=0;
 
 #define alertReadyPin 4
 float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
-bool runOnce = true;
+bool runOnce = true, canChange=true;
 int32_t lastTime;
 
 String mode = "CV";
@@ -228,28 +230,42 @@ void loop(void) {
     mode = "CV";
   }
 
-  if(digitalRead(pinP)==LOW){
+  if((digitalRead(pinP)==LOW)&&debounceFlag&&canChange){
     paramenterSelect=!paramenterSelect;
+    debounceFlag=false;
+    canChange=false;
     Serial.println(paramenterSelect);
-    delay(500);  //Find a way to antibounce and prevent spam detection
+  }else if((digitalRead(pinP)==HIGH)&&!canChange){
+    canChange=true;
   }
+  if(!debounceFlag){
+    debounceLastTime=millis()-debounceLastTime;
+    if(debounceLastTime>100){
+      debounceFlag=true;
+    }
+  }
+
   if((increaseFlag)&&!(paramenterSelect)){
     targetVoltage+=(100*incrementAmount);
     increaseFlag=false;
     Serial.println(targetVoltage);
+    incrementAmount=0;
   }else if((increaseFlag)&&(paramenterSelect)){
     targetCurrent+=(10*incrementAmount);
     increaseFlag=false;
     Serial.println(targetCurrent);
+    incrementAmount=0;
   }
   if((decreaseFlag)&&!(paramenterSelect)){
     targetVoltage-=(100*decreaseAmount);
     decreaseFlag=false;
     Serial.println(targetVoltage);
+    decreaseAmount=0;
   }else if((decreaseFlag)&&(paramenterSelect)){
     targetCurrent-=(10*decreaseAmount);
     decreaseFlag=false;
     Serial.println(targetCurrent);
+    decreaseAmount=0;
   }
 
   psuPID.Compute();
