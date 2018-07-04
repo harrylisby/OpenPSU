@@ -1,13 +1,6 @@
-#include <Arduino.h>
-#include <Wire.h>
-#include <Adafruit_MCP4725.h>
-#include <ADS1115.h>
-#include "PID_v1.h"
-#include "LiquidCrystal_I2C.h"
-#include "EnableInterrupt.h"
 
-/*
-********************************************************************************
+
+/*******************************************************************************
 OpenPSU is a digitally controlled linear power supply developed by Harry Lisby
 ********************************************************************************
 
@@ -22,8 +15,15 @@ incremental encoder with pushbutton for control and configuration.
 Also uses de PID_v1 library which allows fast transition between set voltages,
 working modes and changing loads [output stability].
 
-********************************************************************************
-*/
+*******************************************************************************/
+
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_MCP4725.h>
+#include <ADS1115.h>
+#include "PID_v1.h"
+#include "LiquidCrystal_I2C.h"
+#include "EnableInterrupt.h"
 
 //LCD start
 LiquidCrystal_I2C lcd(0x27,16,4);
@@ -56,6 +56,7 @@ float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
 bool runOnce = true, canChange=true;
+byte currentMenu=1;
 int32_t lastTime;
 
 String mode = "CV";
@@ -118,26 +119,6 @@ void pollAlertReadyPin() {
     Serial.println("Failed to wait for AlertReadyPin, it's stuck high!");
 }
 
-//parameter should be (pinP,oldButtonState)
-int buttonWatcher(int buttonPin, bool oldState){
-  byte buttonState = digitalRead(buttonPin);
-  if (buttonState != oldState){
-    if (millis() - buttonPressTime >= debounceTime){ // debounce adjusted at 10ms
-      buttonPressTime = millis();  // when we closed the switch
-      oldState = buttonState;  // remember for next time
-      if (buttonState == LOW){
-        Serial.println("Button pressed"); // DEBUGGING: print that button has been closed
-        buttonPressed = 1;
-      }
-      else {
-        Serial.println("Button released"); // DEBUGGING: print that button has been opened
-        buttonPressed = 0;
-      }
-    }
-  }
-  return buttonPressed;
-}
-
 int adcRead(byte channel,double scaler = 1){
   int read = 0;
   switch (channel) {
@@ -181,32 +162,50 @@ void serialDebugging(void){
 
 }
 
-void writeLCD(void){
+void menu0(){
+  //lcd.setCursor(0, 0);
+  //lcd.print("OpenPSU - HarryLisby");
   lcd.setCursor(0, 0);
-  lcd.print("OpenPSU - HarryLisby");
-  lcd.setCursor(0, 1);
-  lcd.print("Vt:");
-  lcd.print(targetVoltage/1000);
-  lcd.print("V ");
-  lcd.setCursor(11, 1);
-  lcd.print("It:");
-  lcd.print(targetCurrent/1000);
-  lcd.print("A ");
-  lcd.setCursor(0, 2);
   lcd.print("V: ");
   lcd.print(currentVoltage/1000);
   lcd.print("V  ");
-  lcd.setCursor(11, 2);
+  lcd.setCursor(11, 0);
   lcd.print("I: ");
   lcd.print(currentCurrent/1000);
   lcd.print("A ");
-  lcd.setCursor(0, 3);
+  lcd.setCursor(0, 1);
   lcd.print("P: ");
   lcd.print(((currentVoltage/1000)*(currentCurrent/1000)));
   lcd.print("W  ");
-  lcd.setCursor(11, 3);
+  lcd.setCursor(11, 1);
   lcd.print("M: ");
   lcd.print(mode);
+
+  lcd.setCursor(0, 3);
+  lcd.print("Vt:");
+  lcd.print(targetVoltage/1000);
+  lcd.print("V ");
+  lcd.setCursor(11, 3);
+  lcd.print("It:");
+  lcd.print(targetCurrent/1000);
+  lcd.print("A ");
+}
+
+void menu1(){
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("TestMenu");
+}
+
+void writeLCD(int menuIndex){
+  switch(menuIndex){
+    case 0:
+      menu0();
+      break;
+    case 1:
+      menu1();
+      break;
+  }
 }
 
 void calValues(void){
@@ -276,6 +275,6 @@ void loop(void) {
   if((millis()-lastTime)>=500){
     lastTime=millis();
     serialDebugging();
-    writeLCD();
+    writeLCD(currentMenu);
   }
 }
