@@ -50,67 +50,64 @@ unsigned long buttonPressTime;  // when the switch last changed state
 bool buttonPressed = 0; // a flag variable
 bool debounceFlag=true;
 double debounceLastTime=0;
+int prevEncoderPos=0;
 
+//Menu System
+byte currentMenuQuantity=2;
+byte currentMenu=0;
+bool modifyParameterFlag=false;
+bool inMod=false;
+String mode="CV";
+int menu0ParamTracker=0;
+int incrementing=0;
+
+//Analog-Digital system
 #define alertReadyPin 4
 float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
-bool runOnce = true, canChange=true;
-byte currentMenu=1;
+bool runOnce=true, canChange=true;
 int32_t lastTime;
-
-String mode = "CV";
 
 void reader(){
   newRead = digitalRead(pinA);
   if((lastRead == LOW)&&(newRead == HIGH)){
     if(digitalRead(pinB)==LOW){
       encoderPos++;
-      incrementAmount+=1;
-      increaseFlag=true;
     }else{
       encoderPos--;
-      decreaseAmount+=1;
-      decreaseFlag=true;
     }
   }
   lastRead = digitalRead(pinA);
 }
 
-void setup(void) {
-  Wire.begin();
-  Serial.begin(115200);
-  Serial.println();Serial.println();
-  Serial.println("OpenPSU Version: b0.2");
-  Serial.print("Made by Harry Lisby - ");
-  Serial.println("github.com/harrylisby/OpenPSU");
-  Serial.println();Serial.println();
+bool buttonRead(){
+  bool pendingPress=false;
+  bool pinPStatus=digitalRead(pinP);
+  if((pinPStatus==LOW)&&debounceFlag&&canChange){
+    pendingPress=true; //Sets the pendingPress to true if not debouncing and pressed
+    debounceFlag=false;
+    canChange=false;
+  }else if((pinPStatus==HIGH)&&!canChange){
+    pendingPress=false; //if debouncing is done and button released sets flag to false
+    canChange=true;
+  }
+  if(!debounceFlag){
+    debounceLastTime=millis()-debounceLastTime;
+    if(debounceLastTime>100){
+      debounceFlag=true;
+    }
+  }
+  return pendingPress;
+}
 
-  dac.begin(0x64);
-  Serial.println(adc.testConnection() ? "ADS1115 connection successful" : "ADS1115 connection failed");
-  adc.initialize();
-  adc.setMode(ADS1115_MODE_SINGLESHOT);
-  adc.setRate(ADS1115_RATE_64);
-  adc.setGain(ADS1115_PGA_6P144);
-  pinMode(alertReadyPin,INPUT_PULLUP);
-  adc.setConversionReadyPinMode();
-
-  lcd.begin();                      // initialize the lcd
-  lcd.backlight();
-
-  targetVoltage = 0;
-  targetCurrent = 0;
-
-  psuPID.SetOutputLimits(-511,511);
-  psuPID.SetSampleTime(1);
-  psuPID.SetMode(AUTOMATIC);
-
-  dac.setVoltage(0,false); //Start with output low
-
-  pinMode(pinA,INPUT_PULLUP);
-  pinMode(pinB, INPUT_PULLUP);
-  pinMode(pinP,INPUT_PULLUP);
-  enableInterrupt(pinA, reader, CHANGE);
+int pendingIncrements(){
+  int newDifference = 0;
+  if(prevEncoderPos!=encoderPos){
+    newDifference=prevEncoderPos-encoderPos;
+  }
+  prevEncoderPos = encoderPos;
+  return newDifference;
 }
 
 void pollAlertReadyPin() {
@@ -150,21 +147,31 @@ int adcRead(byte channel,double scaler = 1){
   return read;
 }
 
-void serialDebugging(void){
-  //Uncomment next section for serial debugging
-  //depending on the data you want to get
-  Serial.print(voltsDigital);Serial.print(": ");
-  //Serial.print(currentVoltage); Serial.print(": ");
-  Serial.println(Output); //Serial.println(": ");
-  //Serial.print(currentCurrent); Serial.println();
-  //Serial.println(encoderPos);
-  //Serial.println(digitalRead(pinP));
+//CALIBRATIONROUTINES///////////////////////////////////////////////////////////
+
+void calValues(void){
 
 }
+
+//MENUSYSTEM////////////////////////////////////////////////////////////////////
 
 void menu0(){
   //lcd.setCursor(0, 0);
   //lcd.print("OpenPSU - HarryLisby");
+  if(modifyParameterFlag){
+    inMod=true;
+    menu0ParamTracker++;
+    if(menu0ParamTracker>1){
+      menu0ParamTracker=0;
+    }
+    int increaseAmount=pendingIncrements();
+    if((increaseAmount!=0)&&menu0ParamTracker==0){
+      targetVoltage+=100*increaseAmount;
+    }else if((increaseAmount!=0)&&menu0ParamTracker==1){
+      targetCurrent+=10*increaseAmount;
+    }
+
+  }
   lcd.setCursor(0, 0);
   lcd.print("V: ");
   lcd.print(currentVoltage/1000);
@@ -194,6 +201,12 @@ void menu0(){
 void menu1(){
   lcd.clear();
   lcd.setCursor(0,0);
+  lcd.print("Calibration");
+}
+
+void menu2(){
+  lcd.clear();
+  lcd.setCursor(0,0);
   lcd.print("TestMenu");
 }
 
@@ -205,12 +218,73 @@ void writeLCD(int menuIndex){
     case 1:
       menu1();
       break;
+    case 2:
+      menu2();
+      break;
   }
 }
 
-void calValues(void){
+//EXTRAS////////////////////////////////////////////////////////////////////////
+
+void serialDebugging(void){
+  //Uncomment next section for serial debugging
+  //depending on the data you want to get
+  Serial.print(voltsDigital);Serial.print(": ");
+  //Serial.print(currentVoltage); Serial.print(": ");
+  Serial.println(Output); //Serial.println(": ");
+  //Serial.print(currentCurrent); Serial.println();
+  //Serial.println(encoderPos);
+  //Serial.println(digitalRead(pinP));
 
 }
+
+//SETUP/////////////////////////////////////////////////////////////////////////
+
+void setup(void) {
+  Wire.begin();
+  Serial.begin(115200);
+  Serial.println();Serial.println();
+  Serial.println("OpenPSU Version: b0.2");
+  Serial.print("Made by Harry Lisby - ");
+  Serial.println("github.com/harrylisby/OpenPSU");
+  Serial.println();Serial.println();
+
+  dac.begin(0x64);
+  Serial.println(adc.testConnection() ? "ADS1115 connection successful" : "ADS1115 connection failed");
+  adc.initialize();
+  adc.setMode(ADS1115_MODE_SINGLESHOT);
+  adc.setRate(ADS1115_RATE_64);
+  adc.setGain(ADS1115_PGA_6P144);
+  pinMode(alertReadyPin,INPUT_PULLUP);
+  adc.setConversionReadyPinMode();
+
+  lcd.begin();                      // initialize the lcd
+  lcd.backlight();
+
+  targetVoltage = 0;
+  targetCurrent = 0;
+
+  psuPID.SetOutputLimits(-511,511);
+  psuPID.SetSampleTime(1);
+  psuPID.SetMode(AUTOMATIC);
+
+  dac.setVoltage(0,false); //Start with output low
+
+  pinMode(pinA,INPUT_PULLUP);
+  pinMode(pinB, INPUT_PULLUP);
+  pinMode(pinP,INPUT_PULLUP);
+  enableInterrupt(pinA, reader, CHANGE);
+
+  lcd.setCursor(7, 1);
+  lcd.print("OpenPSU");
+  lcd.setCursor(5, 2);
+  lcd.print("Harry Lisby");
+  delay(2000);
+  lcd.clear();
+  writeLCD(0);
+}
+
+//LOOP//////////////////////////////////////////////////////////////////////////
 
 void loop(void) {
 
@@ -229,21 +303,7 @@ void loop(void) {
     mode = "CV";
   }
 
-  if((digitalRead(pinP)==LOW)&&debounceFlag&&canChange){
-    paramenterSelect=!paramenterSelect;
-    debounceFlag=false;
-    canChange=false;
-    Serial.println(paramenterSelect);
-  }else if((digitalRead(pinP)==HIGH)&&!canChange){
-    canChange=true;
-  }
-  if(!debounceFlag){
-    debounceLastTime=millis()-debounceLastTime;
-    if(debounceLastTime>100){
-      debounceFlag=true;
-    }
-  }
-
+/*
   if((increaseFlag)&&!(paramenterSelect)){
     targetVoltage+=(100*incrementAmount);
     increaseFlag=false;
@@ -266,15 +326,26 @@ void loop(void) {
     Serial.println(targetCurrent);
     decreaseAmount=0;
   }
-
+*/
   psuPID.Compute();
   voltsDigital+=Output;                 //Sums PID output to current output
   voltsDigital=constrain(voltsDigital, 0, 4095);
   dac.setVoltage(voltsDigital, false);
 
+  incrementing = pendingIncrements();
+  if((incrementing!=0)&&!inMod){
+    currentMenu++;
+    if(currentMenu>currentMenuQuantity)currentMenu=0;
+    writeLCD(currentMenu);
+  }else if(incrementing!=0){
+    writeLCD(currentMenu);
+  }
+  if(buttonRead()){
+    modifyParameterFlag=true;
+    writeLCD(currentMenu);
+  }
   if((millis()-lastTime)>=500){
     lastTime=millis();
     serialDebugging();
-    writeLCD(0);
   }
 }
