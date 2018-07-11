@@ -164,11 +164,13 @@ void menu0(){
     if(menu0ParamTracker>1){
       menu0ParamTracker=0;
     }
-    int increaseAmount=pendingIncrements();
+    int increaseAmount=incrementing;
     if((increaseAmount!=0)&&menu0ParamTracker==0){
       targetVoltage+=100*increaseAmount;
+      incrementing=0;
     }else if((increaseAmount!=0)&&menu0ParamTracker==1){
       targetCurrent+=10*increaseAmount;
+      incrementing=0;
     }
 
   }
@@ -332,7 +334,7 @@ void loop(void) {
   voltsDigital=constrain(voltsDigital, 0, 4095);
   dac.setVoltage(voltsDigital, false);
 
-  incrementing = pendingIncrements();
+  incrementing=pendingIncrements();
   if((incrementing!=0)&&!inMod){
     currentMenu++;
     if(currentMenu>currentMenuQuantity)currentMenu=0;
