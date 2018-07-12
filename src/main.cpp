@@ -69,7 +69,7 @@ bool runOnce=true, canChange=true;
 int32_t lastTime;
 
 //Calibration System
-float calVoltage, calCurrent, voltsFactor, currentFactor; //This values should be written and read to EEPROM later
+float calVoltage, calCurrent, voltsFactor=6.035, currentFactor=2; //This values should be written and read to EEPROM later
 
 void reader(){
   newRead = digitalRead(pinA);
@@ -245,20 +245,23 @@ void menu1(){
     buttonPress=false;
     if(pendingAction){
       if((incrementing!=0)&&subMenuIndex==1){
-        targetVoltage+=100*incrementing;
+        targetVoltage=10000;
+        calVoltage+=incrementing;
         incrementing=0;
-        Serial.println("Volts incremented");
-
+        Serial.println("CalVolts incremented");
       }else if((incrementing!=0)&&subMenuIndex==2){
-        targetCurrent+=10*incrementing;
+        targetCurrent=1000;
+        calCurrent+=incrementing;
         incrementing=0;
-        Serial.println("Amps incremented");
-
+        Serial.println("CalAmps incremented");
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
+        Serial.println("VF: "+String(voltsFactor));
+        Serial.println("IF: "+String(currentFactor));
         Serial.println("Exiting submenu");
         lcd.noCursor();
+        calValues();
       }
     }
   }
@@ -267,11 +270,13 @@ void menu1(){
   lcd.setCursor(0,0);
   lcd.print("Calibration");
   lcd.setCursor(0,2);
-  lcd.print("Measured voltage: ");
+  lcd.print("Mea.volt: ");
   lcd.print(calVoltage);
+  lcd.print("mV");
   lcd.setCursor(0,3);
-  lcd.print("Measured current: ");
+  lcd.print("Mea.curr: ");
   lcd.print(calCurrent);
+  lcd.print("mA");
 
   if(subMenuIndex==1){
     lcd.setCursor(0,2);
@@ -410,7 +415,7 @@ void menuHandle(){
     writeLCD(currentMenu);
     Serial.println("Button read");
   }
-  if((millis()-lastTime)>=500){
+  if((millis()-lastTime)>=1000){
     writeLCD(currentMenu);
     lastTime=millis();
     serialDebugging();
