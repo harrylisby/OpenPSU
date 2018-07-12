@@ -69,7 +69,8 @@ bool runOnce=true, canChange=true;
 int32_t lastTime;
 
 //Calibration System
-float calVoltage, calCurrent, voltsFactor=6.035, currentFactor=2; //This values should be written and read to EEPROM later
+float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=2.4093; //This values should be written and read to EEPROM later
+bool oneTime=true;
 
 void reader(){
   newRead = digitalRead(pinA);
@@ -178,12 +179,10 @@ void menu0(){
         targetVoltage+=100*incrementing;
         incrementing=0;
         Serial.println("Volts incremented");
-
       }else if((incrementing!=0)&&subMenuIndex==2){
         targetCurrent+=10*incrementing;
         incrementing=0;
         Serial.println("Amps incremented");
-
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
@@ -245,8 +244,8 @@ void menu1(){
     buttonPress=false;
     if(pendingAction){
       if((incrementing!=0)&&subMenuIndex==1){
-        targetVoltage=10000;
-        calVoltage+=incrementing;
+        targetVoltage=1000;
+        calVoltage+=50*incrementing;
         incrementing=0;
         Serial.println("CalVolts incremented");
       }else if((incrementing!=0)&&subMenuIndex==2){
@@ -257,11 +256,14 @@ void menu1(){
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
-        Serial.println("VF: "+String(voltsFactor));
-        Serial.println("IF: "+String(currentFactor));
-        Serial.println("Exiting submenu");
-        lcd.noCursor();
-        calValues();
+        if(oneTime){
+          oneTime=false;
+          calValues();
+          Serial.println("VF: "+String(voltsFactor));
+          Serial.println("IF: "+String(currentFactor));
+          Serial.println("Exiting submenu");
+          lcd.noCursor();
+        }
       }
     }
   }
@@ -315,9 +317,9 @@ void serialDebugging(void){
   //Uncomment next section for serial debugging
   //depending on the data you want to get
   //Serial.print(voltsDigital);Serial.print(": ");
-  //Serial.print(currentVoltage); Serial.print(": ");
+  Serial.print(currentVoltage); Serial.print(": ");
   //Serial.println(Output); //Serial.println(": ");
-  //Serial.print(currentCurrent); Serial.println();
+  Serial.print(currentCurrent); Serial.println();
   //Serial.println(encoderPos);
   //Serial.println(digitalRead(pinP));
 
