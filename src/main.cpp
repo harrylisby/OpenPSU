@@ -36,6 +36,8 @@ double kpV=0.2245, kiV=0.2500,kdV=0.0000;
 double kpI=5.7500, kiI=1.5000,kdI=0.0000; //20.7500 4.5000
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
+bool firstTime =true;
+
 //Encoder configuration
 #define pinA 2
 #define pinB 3
@@ -343,22 +345,28 @@ void menu2(){  //PID MENU
   lcd.print("PID tunning:");
   lcd.setCursor(0, 1);
   lcd.print("KpV: ");
+  lcd.print(kpV);
   lcd.setCursor(0, 2);
   lcd.print("KiV: ");
+  lcd.print(kiV);
   lcd.setCursor(0, 3);
   lcd.print("KdV: ");
-  lcd.setCursor(8, 1);
+  lcd.print(kdV);
+  lcd.setCursor(10, 1);
   lcd.print("KpI: ");
-  lcd.setCursor(8, 2);
+  lcd.print(kpI);
+  lcd.setCursor(10, 2);
   lcd.print("KiI: ");
-  lcd.setCursor(8, 3);
+  lcd.print(kiI);
+  lcd.setCursor(10, 3);
   lcd.print("KdI: ");
+  lcd.print(kdI);
 
   if(subMenuIndex!=0 && subMenuIndex<=3){
     lcd.setCursor(0,subMenuIndex);
     lcd.blink();
   }else if(subMenuIndex>=4 && subMenuIndex<=6){
-    lcd.setCursor(8,(subMenuIndex-3));
+    lcd.setCursor(10,(subMenuIndex-3));
     lcd.blink();
   }else{
     lcd.noBlink();
@@ -423,7 +431,7 @@ void setup(void) {
   psuPID.SetSampleTime(1);
   psuPID.SetMode(AUTOMATIC);
 
-  dac.setVoltage(0,false); //Start with output low
+  dac.setVoltage(500,false); //Start with output low
 
   pinMode(pinA,INPUT_PULLUP);
   pinMode(pinB, INPUT_PULLUP);
@@ -434,7 +442,7 @@ void setup(void) {
   lcd.print("OpenPSU");
   lcd.setCursor(5, 2);
   lcd.print("Harry Lisby");
-  delay(2000);
+  delay(1000);
   lcd.clear();
   writeLCD(0);
 }
@@ -472,6 +480,7 @@ void menuHandle(){
     if(incrementing<0)currentMenu--;
     if(currentMenu>currentMenuQuantity)currentMenu=0;
     if(currentMenu<=(-1))currentMenu=currentMenuQuantity;
+    lcd.clear();
     writeLCD(currentMenu);
     //Serial.println("Menu changed "+String(incrementing)+" "+String(currentMenu));
   }else if((incrementing!=0)&&inMod){
@@ -497,4 +506,8 @@ void menuHandle(){
 void loop(void) {
   psuHandle();
   menuHandle();
+  /*if(firstTime){
+    dac.setVoltage(0, false);
+    firstTime=false;
+  }*/
 }
