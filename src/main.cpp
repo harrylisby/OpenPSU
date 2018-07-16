@@ -72,6 +72,8 @@ int32_t lastTime;
 float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=2.4093; //This values should be written and read to EEPROM later
 bool oneTime=true;
 
+//INPUTHANDLER//////////////////////////////////////////////////////////////////
+
 void reader(){
   newRead = digitalRead(pinA);
   if((lastRead == LOW)&&(newRead == HIGH)){
@@ -150,7 +152,7 @@ int adcRead(byte channel,double scaler = 1){
   return read;
 }
 
-//CALIBRATIONROUTINES///////////////////////////////////////////////////////////
+//CALIBRATIONROUTINE////////////////////////////////////////////////////////////
 
 void calValues(void){
   //ADD EEPROM FUNCTIONALITY
@@ -166,7 +168,7 @@ void menu0(){
     if(buttonPress){
       subMenuIndex++;
       if(subMenuIndex>2)subMenuIndex=0;
-      Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
       if(subMenuIndex==1||subMenuIndex==2){
         inMod=true;
       }else{
@@ -178,15 +180,15 @@ void menu0(){
       if((incrementing!=0)&&subMenuIndex==1){
         targetVoltage+=100*incrementing;
         incrementing=0;
-        Serial.println("Volts incremented");
+        //Serial.println("Volts incremented");
       }else if((incrementing!=0)&&subMenuIndex==2){
         targetCurrent+=10*incrementing;
         incrementing=0;
-        Serial.println("Amps incremented");
+        //Serial.println("Amps incremented");
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
-        Serial.println("Exiting submenu");
+        //Serial.println("Exiting submenu");
         lcd.noCursor();
       }
     }
@@ -234,7 +236,7 @@ void menu1(){
     if(buttonPress){
       subMenuIndex++;
       if(subMenuIndex>2)subMenuIndex=0;
-      Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
       if(subMenuIndex==1||subMenuIndex==2){
         inMod=true;
       }else{
@@ -245,14 +247,14 @@ void menu1(){
     if(pendingAction){
       if((incrementing!=0)&&subMenuIndex==1){
         targetVoltage=1000;
-        calVoltage+=50*incrementing;
+        calVoltage+=10*incrementing;
         incrementing=0;
-        Serial.println("CalVolts incremented");
+        //Serial.println("CalVolts incremented");
       }else if((incrementing!=0)&&subMenuIndex==2){
         targetCurrent=1000;
         calCurrent+=incrementing;
         incrementing=0;
-        Serial.println("CalAmps incremented");
+        //Serial.println("CalAmps incremented");
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
@@ -331,7 +333,7 @@ void setup(void) {
   Wire.begin();
   Serial.begin(115200);
   Serial.println();Serial.println();
-  Serial.println("OpenPSU Version: b0.2");
+  Serial.println("OpenPSU Version: b0.6");
   Serial.print("Made by Harry Lisby - ");
   Serial.println("github.com/harrylisby/OpenPSU");
   Serial.println();Serial.println();
@@ -405,11 +407,11 @@ void menuHandle(){
     if(currentMenu>currentMenuQuantity)currentMenu=0;
     if(currentMenu<=(-1))currentMenu=currentMenuQuantity;
     writeLCD(currentMenu);
-    Serial.println("Menu changed "+String(incrementing)+" "+String(currentMenu));
+    //Serial.println("Menu changed "+String(incrementing)+" "+String(currentMenu));
   }else if((incrementing!=0)&&inMod){
     pendingAction=true;
     writeLCD(currentMenu);
-    Serial.println("Modifying submenu " + String(subMenuIndex));
+    //Serial.println("Modifying submenu " + String(subMenuIndex));
   }
 
   if(buttonRead()){
