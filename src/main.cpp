@@ -163,7 +163,7 @@ void calValues(void){
 
 //MENUSYSTEM////////////////////////////////////////////////////////////////////
 
-void menu0(){
+void menu0(){ //MAIN MENU
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
@@ -231,7 +231,7 @@ void menu0(){
 
 }
 
-void menu1(){
+void menu1(){ //CAL MENU
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
@@ -247,11 +247,11 @@ void menu1(){
     if(pendingAction){
       if((incrementing!=0)&&subMenuIndex==1){
         targetVoltage=1000;
+        targetCurrent=1000;
         calVoltage+=10*incrementing;
         incrementing=0;
         //Serial.println("CalVolts incremented");
       }else if((incrementing!=0)&&subMenuIndex==2){
-        targetCurrent=1000;
         calCurrent+=incrementing;
         incrementing=0;
         //Serial.println("CalAmps incremented");
@@ -270,7 +270,6 @@ void menu1(){
     }
   }
 
-  lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Calibration");
   lcd.setCursor(0,2);
@@ -293,10 +292,77 @@ void menu1(){
   }
 }
 
-void menu2(){
-  lcd.clear();
+void menu2(){  //PID MENU
+  if(pendingAction||buttonPress){
+    if(buttonPress){
+      subMenuIndex++;
+      if(subMenuIndex>6)subMenuIndex=0;
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      if(subMenuIndex>=1 && subMenuIndex<=6){
+        inMod=true;
+      }else{
+        inMod=false;
+      }
+    }
+    buttonPress=false;
+    if(pendingAction){
+      if((incrementing!=0)&&subMenuIndex==1){
+        kpV+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==2){
+        kiV+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==3){
+        kdV+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==4){
+        kpI+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==5){
+        kiI+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==6){
+        kdI+=0.01*incrementing;
+        incrementing=0;
+      }else if(subMenuIndex==0){
+        subMenuIndex=0;
+        inMod=false;
+        if(oneTime){
+          oneTime=false;
+          calValues();
+          Serial.println("VF: "+String(voltsFactor));
+          Serial.println("IF: "+String(currentFactor));
+          Serial.println("Exiting submenu");
+          lcd.noCursor();
+        }
+      }
+    }
+  }
+
   lcd.setCursor(0,0);
-  lcd.print("TestMenu");
+  lcd.print("PID tunning:");
+  lcd.setCursor(0, 1);
+  lcd.print("KpV: ");
+  lcd.setCursor(0, 2);
+  lcd.print("KiV: ");
+  lcd.setCursor(0, 3);
+  lcd.print("KdV: ");
+  lcd.setCursor(8, 1);
+  lcd.print("KpI: ");
+  lcd.setCursor(8, 2);
+  lcd.print("KiI: ");
+  lcd.setCursor(8, 3);
+  lcd.print("KdI: ");
+
+  if(subMenuIndex!=0 && subMenuIndex<=3){
+    lcd.setCursor(0,subMenuIndex);
+    lcd.blink();
+  }else if(subMenuIndex>=4 && subMenuIndex<=6){
+    lcd.setCursor(8,(subMenuIndex-3));
+    lcd.blink();
+  }else{
+    lcd.noBlink();
+  }
 }
 
 void writeLCD(int menuIndex){
