@@ -36,6 +36,8 @@ double kpV=0.2245, kiV=0.2500,kdV=0.0000;
 double kpI=5.7500, kiI=1.5000,kdI=0.0000; //20.7500 4.5000
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
+bool firstTime =true;
+
 //Encoder configuration
 #define pinA 2
 #define pinB 3
@@ -71,6 +73,8 @@ int32_t lastTime;
 //Calibration System
 float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=2.4093; //This values should be written and read to EEPROM later
 bool oneTime=true;
+
+//INPUTHANDLER//////////////////////////////////////////////////////////////////
 
 void reader(){
   newRead = digitalRead(pinA);
@@ -150,7 +154,7 @@ int adcRead(byte channel,double scaler = 1){
   return read;
 }
 
-//CALIBRATIONROUTINES///////////////////////////////////////////////////////////
+//CALIBRATIONROUTINE////////////////////////////////////////////////////////////
 
 void calValues(void){
   //ADD EEPROM FUNCTIONALITY
@@ -161,12 +165,12 @@ void calValues(void){
 
 //MENUSYSTEM////////////////////////////////////////////////////////////////////
 
-void menu0(){
+void menu0(){ //MAIN MENU
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
       if(subMenuIndex>2)subMenuIndex=0;
-      Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
       if(subMenuIndex==1||subMenuIndex==2){
         inMod=true;
       }else{
@@ -178,15 +182,15 @@ void menu0(){
       if((incrementing!=0)&&subMenuIndex==1){
         targetVoltage+=100*incrementing;
         incrementing=0;
-        Serial.println("Volts incremented");
+        //Serial.println("Volts incremented");
       }else if((incrementing!=0)&&subMenuIndex==2){
         targetCurrent+=10*incrementing;
         incrementing=0;
-        Serial.println("Amps incremented");
+        //Serial.println("Amps incremented");
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
-        Serial.println("Exiting submenu");
+        //Serial.println("Exiting submenu");
         lcd.noCursor();
       }
     }
@@ -229,12 +233,12 @@ void menu0(){
 
 }
 
-void menu1(){
+void menu1(){ //CAL MENU
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
       if(subMenuIndex>2)subMenuIndex=0;
-      Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
       if(subMenuIndex==1||subMenuIndex==2){
         inMod=true;
       }else{
@@ -245,14 +249,14 @@ void menu1(){
     if(pendingAction){
       if((incrementing!=0)&&subMenuIndex==1){
         targetVoltage=1000;
-        calVoltage+=50*incrementing;
-        incrementing=0;
-        Serial.println("CalVolts incremented");
-      }else if((incrementing!=0)&&subMenuIndex==2){
         targetCurrent=1000;
+        calVoltage+=10*incrementing;
+        incrementing=0;
+        //Serial.println("CalVolts incremented");
+      }else if((incrementing!=0)&&subMenuIndex==2){
         calCurrent+=incrementing;
         incrementing=0;
-        Serial.println("CalAmps incremented");
+        //Serial.println("CalAmps incremented");
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
@@ -268,7 +272,6 @@ void menu1(){
     }
   }
 
-  lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("Calibration");
   lcd.setCursor(0,2);
@@ -291,10 +294,83 @@ void menu1(){
   }
 }
 
-void menu2(){
-  lcd.clear();
+void menu2(){  //PID MENU
+  if(pendingAction||buttonPress){
+    if(buttonPress){
+      subMenuIndex++;
+      if(subMenuIndex>6)subMenuIndex=0;
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      if(subMenuIndex>=1 && subMenuIndex<=6){
+        inMod=true;
+      }else{
+        inMod=false;
+      }
+    }
+    buttonPress=false;
+    if(pendingAction){
+      if((incrementing!=0)&&subMenuIndex==1){
+        kpV+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==2){
+        kiV+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==3){
+        kdV+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==4){
+        kpI+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==5){
+        kiI+=0.01*incrementing;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==6){
+        kdI+=0.01*incrementing;
+        incrementing=0;
+      }else if(subMenuIndex==0){
+        subMenuIndex=0;
+        inMod=false;
+        if(oneTime){
+          oneTime=false;
+          calValues();
+          Serial.println("VF: "+String(voltsFactor));
+          Serial.println("IF: "+String(currentFactor));
+          Serial.println("Exiting submenu");
+          lcd.noCursor();
+        }
+      }
+    }
+  }
+
   lcd.setCursor(0,0);
-  lcd.print("TestMenu");
+  lcd.print("PID tunning:");
+  lcd.setCursor(0, 1);
+  lcd.print("KpV: ");
+  lcd.print(kpV);
+  lcd.setCursor(0, 2);
+  lcd.print("KiV: ");
+  lcd.print(kiV);
+  lcd.setCursor(0, 3);
+  lcd.print("KdV: ");
+  lcd.print(kdV);
+  lcd.setCursor(10, 1);
+  lcd.print("KpI: ");
+  lcd.print(kpI);
+  lcd.setCursor(10, 2);
+  lcd.print("KiI: ");
+  lcd.print(kiI);
+  lcd.setCursor(10, 3);
+  lcd.print("KdI: ");
+  lcd.print(kdI);
+
+  if(subMenuIndex!=0 && subMenuIndex<=3){
+    lcd.setCursor(0,subMenuIndex);
+    lcd.blink();
+  }else if(subMenuIndex>=4 && subMenuIndex<=6){
+    lcd.setCursor(10,(subMenuIndex-3));
+    lcd.blink();
+  }else{
+    lcd.noBlink();
+  }
 }
 
 void writeLCD(int menuIndex){
@@ -331,7 +407,7 @@ void setup(void) {
   Wire.begin();
   Serial.begin(115200);
   Serial.println();Serial.println();
-  Serial.println("OpenPSU Version: b0.2");
+  Serial.println("OpenPSU Version: b0.6");
   Serial.print("Made by Harry Lisby - ");
   Serial.println("github.com/harrylisby/OpenPSU");
   Serial.println();Serial.println();
@@ -355,7 +431,7 @@ void setup(void) {
   psuPID.SetSampleTime(1);
   psuPID.SetMode(AUTOMATIC);
 
-  dac.setVoltage(0,false); //Start with output low
+  dac.setVoltage(500,false); //Start with output low
 
   pinMode(pinA,INPUT_PULLUP);
   pinMode(pinB, INPUT_PULLUP);
@@ -366,7 +442,7 @@ void setup(void) {
   lcd.print("OpenPSU");
   lcd.setCursor(5, 2);
   lcd.print("Harry Lisby");
-  delay(2000);
+  delay(1000);
   lcd.clear();
   writeLCD(0);
 }
@@ -404,12 +480,13 @@ void menuHandle(){
     if(incrementing<0)currentMenu--;
     if(currentMenu>currentMenuQuantity)currentMenu=0;
     if(currentMenu<=(-1))currentMenu=currentMenuQuantity;
+    lcd.clear();
     writeLCD(currentMenu);
-    Serial.println("Menu changed "+String(incrementing)+" "+String(currentMenu));
+    //Serial.println("Menu changed "+String(incrementing)+" "+String(currentMenu));
   }else if((incrementing!=0)&&inMod){
     pendingAction=true;
     writeLCD(currentMenu);
-    Serial.println("Modifying submenu " + String(subMenuIndex));
+    //Serial.println("Modifying submenu " + String(subMenuIndex));
   }
 
   if(buttonRead()){
