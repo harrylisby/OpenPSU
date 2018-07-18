@@ -1,13 +1,4 @@
-#include <Arduino.h>
-#include <Wire.h>
-#include <Adafruit_MCP4725.h>
-#include <ADS1115.h>
-#include "PID_v1.h"
-#include "LiquidCrystal_I2C.h"
-#include "EnableInterrupt.h"
-
-/*
-********************************************************************************
+/*******************************************************************************
 OpenPSU is a digitally controlled linear power supply developed by Harry Lisby
 ********************************************************************************
 
@@ -22,8 +13,15 @@ incremental encoder with pushbutton for control and configuration.
 Also uses de PID_v1 library which allows fast transition between set voltages,
 working modes and changing loads [output stability].
 
-********************************************************************************
-*/
+*******************************************************************************/
+
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_MCP4725.h>
+#include <ADS1115.h>
+#include "PID_v1.h"
+#include "LiquidCrystal_I2C.h"
+#include "EnableInterrupt.h"
 
 //LCD start
 LiquidCrystal_I2C lcd(0x27,16,4);
@@ -34,43 +32,300 @@ ADS1115 adc(0x48);
 
 //PID_v1
 double Setpoint, Input, Output;
-double kpV=0.2250, kiV=0.1000,kdV=0.0000;
-double kpI=20.7500, kiI=4.5000,kdI=0.0000;
+double kpV=0.2245, kiV=0.2500,kdV=0.0000;
+double kpI=5.7500, kiI=1.5000,kdI=0.0000; //20.7500 4.5000
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
 //Encoder configuration
 #define pinA 2
 #define pinB 3
 #define pinP 5
-volatile int32_t encoderPos;
+volatile int16_t encoderPos,incrementAmount,decreaseAmount;
 bool newRead,lastRead,increaseFlag,decreaseFlag,paramenterSelect;
 byte oldButtonState = HIGH;  // assume switch open because of pull-up resistor
 const unsigned long debounceTime = 10;  // milliseconds
 unsigned long buttonPressTime;  // when the switch last changed state
 bool buttonPressed = 0; // a flag variable
+bool debounceFlag=true;
+double debounceLastTime=0;
+int prevEncoderPos=0;
 
+//Menu System
+byte currentMenuQuantity=2;
+int8_t currentMenu=0;
+bool pendingAction=false;
+bool inMod=false,buttonPress=false;
+String mode="CV";
+int menu0ParamTracker=0;
+int incrementing=0;
+int subMenuIndex;
+
+//Analog-Digital system
 #define alertReadyPin 4
 float targetVoltage = 0, targetCurrent = 0;
 float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
-bool runOnce = true;
+bool runOnce=true, canChange=true;
 int32_t lastTime;
 
-String mode = "CV";
+//Calibration System
+float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=2.4093; //This values should be written and read to EEPROM later
+bool oneTime=true;
 
 void reader(){
   newRead = digitalRead(pinA);
   if((lastRead == LOW)&&(newRead == HIGH)){
     if(digitalRead(pinB)==LOW){
-      encoderPos++;
-      increaseFlag=true;
-    }else{
       encoderPos--;
-      decreaseFlag=true;
+    }else{
+      encoderPos++;
     }
   }
   lastRead = digitalRead(pinA);
 }
+
+bool buttonRead(){
+  bool pendingPress=false;
+  bool pinPStatus=digitalRead(pinP);
+  if((pinPStatus==LOW)&&debounceFlag&&canChange){
+    pendingPress=true; //Sets the pendingPress to true if not debouncing and pressed
+    debounceFlag=false;
+    canChange=false;
+  }else if((pinPStatus==HIGH)&&!canChange){
+    pendingPress=false; //if debouncing is done and button released sets flag to false
+    canChange=true;
+  }
+  if(!debounceFlag){
+    debounceLastTime=millis()-debounceLastTime;
+    if(debounceLastTime>100){
+      debounceFlag=true;
+    }
+  }
+  return pendingPress;
+}
+
+int pendingIncrements(){
+  int newDifference = 0;
+  if(prevEncoderPos!=encoderPos){
+    newDifference=prevEncoderPos-encoderPos;
+  }
+  prevEncoderPos = encoderPos;
+  return newDifference;
+}
+
+void pollAlertReadyPin() {
+  for (uint32_t i = 0; i<100000; i++)
+    if (!digitalRead(alertReadyPin)) return;
+    Serial.println("Failed to wait for AlertReadyPin, it's stuck high!");
+}
+
+int adcRead(byte channel,double scaler = 1){
+  int read = 0;
+  switch (channel) {
+    case 0:
+      adc.setMultiplexer(ADS1115_MUX_P0_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 1:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 2:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+    case 3:
+      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.triggerConversion();
+      pollAlertReadyPin();
+      read = scaler*(adc.getMilliVolts(false));
+      break;
+  }
+  return read;
+}
+
+//CALIBRATIONROUTINES///////////////////////////////////////////////////////////
+
+void calValues(void){
+  //ADD EEPROM FUNCTIONALITY
+  voltsFactor = calVoltage/currentVoltage;
+  currentFactor = calCurrent/currentCurrent;
+
+}
+
+//MENUSYSTEM////////////////////////////////////////////////////////////////////
+
+void menu0(){
+  if(pendingAction||buttonPress){
+    if(buttonPress){
+      subMenuIndex++;
+      if(subMenuIndex>2)subMenuIndex=0;
+      Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      if(subMenuIndex==1||subMenuIndex==2){
+        inMod=true;
+      }else{
+        inMod=false;
+      }
+    }
+    buttonPress=false;
+    if(pendingAction){
+      if((incrementing!=0)&&subMenuIndex==1){
+        targetVoltage+=100*incrementing;
+        incrementing=0;
+        Serial.println("Volts incremented");
+      }else if((incrementing!=0)&&subMenuIndex==2){
+        targetCurrent+=10*incrementing;
+        incrementing=0;
+        Serial.println("Amps incremented");
+      }else if(subMenuIndex==0){
+        subMenuIndex=0;
+        inMod=false;
+        Serial.println("Exiting submenu");
+        lcd.noCursor();
+      }
+    }
+  }
+  //lcd.setCursor(0, 0);
+  //lcd.print("OpenPSU - HarryLisby");
+  lcd.setCursor(0, 0);
+  lcd.print("V: ");
+  lcd.print(currentVoltage/1000);
+  lcd.print("V  ");
+  lcd.setCursor(11, 0);
+  lcd.print("I: ");
+  lcd.print(currentCurrent/1000);
+  lcd.print("A ");
+  lcd.setCursor(0, 1);
+  lcd.print("P: ");
+  lcd.print(((currentVoltage/1000)*(currentCurrent/1000)));
+  lcd.print("W  ");
+  lcd.setCursor(11, 1);
+  lcd.print("M: ");
+  lcd.print(mode);
+  lcd.setCursor(0, 3);
+  lcd.print("Vt:");
+  lcd.print(targetVoltage/1000);
+  lcd.print("V ");
+  lcd.setCursor(11, 3);
+  lcd.print("It:");
+  lcd.print(targetCurrent/1000);
+  lcd.print("A ");
+
+  if(subMenuIndex==1){
+    lcd.setCursor(0,3);
+    lcd.blink();
+  }else if(subMenuIndex==2){
+    lcd.setCursor(11,3);
+    lcd.blink();
+  }else{
+    lcd.noBlink();
+  }
+
+}
+
+void menu1(){
+  if(pendingAction||buttonPress){
+    if(buttonPress){
+      subMenuIndex++;
+      if(subMenuIndex>2)subMenuIndex=0;
+      Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      if(subMenuIndex==1||subMenuIndex==2){
+        inMod=true;
+      }else{
+        inMod=false;
+      }
+    }
+    buttonPress=false;
+    if(pendingAction){
+      if((incrementing!=0)&&subMenuIndex==1){
+        targetVoltage=1000;
+        calVoltage+=50*incrementing;
+        incrementing=0;
+        Serial.println("CalVolts incremented");
+      }else if((incrementing!=0)&&subMenuIndex==2){
+        targetCurrent=1000;
+        calCurrent+=incrementing;
+        incrementing=0;
+        Serial.println("CalAmps incremented");
+      }else if(subMenuIndex==0){
+        subMenuIndex=0;
+        inMod=false;
+        if(oneTime){
+          oneTime=false;
+          calValues();
+          Serial.println("VF: "+String(voltsFactor));
+          Serial.println("IF: "+String(currentFactor));
+          Serial.println("Exiting submenu");
+          lcd.noCursor();
+        }
+      }
+    }
+  }
+
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Calibration");
+  lcd.setCursor(0,2);
+  lcd.print("Mea.volt: ");
+  lcd.print(calVoltage);
+  lcd.print("mV");
+  lcd.setCursor(0,3);
+  lcd.print("Mea.curr: ");
+  lcd.print(calCurrent);
+  lcd.print("mA");
+
+  if(subMenuIndex==1){
+    lcd.setCursor(0,2);
+    lcd.blink();
+  }else if(subMenuIndex==2){
+    lcd.setCursor(0,3);
+    lcd.blink();
+  }else{
+    lcd.noBlink();
+  }
+}
+
+void menu2(){
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("TestMenu");
+}
+
+void writeLCD(int menuIndex){
+  switch(menuIndex){
+    case 0:
+      menu0();
+      break;
+    case 1:
+      menu1();
+      break;
+    case 2:
+      menu2();
+      break;
+  }
+}
+
+//EXTRAS////////////////////////////////////////////////////////////////////////
+
+void serialDebugging(void){
+  //Uncomment next section for serial debugging
+  //depending on the data you want to get
+  //Serial.print(voltsDigital);Serial.print(": ");
+  Serial.print(currentVoltage); Serial.print(": ");
+  //Serial.println(Output); //Serial.println(": ");
+  Serial.print(currentCurrent); Serial.println();
+  //Serial.println(encoderPos);
+  //Serial.println(digitalRead(pinP));
+
+}
+
+//SETUP/////////////////////////////////////////////////////////////////////////
 
 void setup(void) {
   Wire.begin();
@@ -106,45 +361,21 @@ void setup(void) {
   pinMode(pinB, INPUT_PULLUP);
   pinMode(pinP,INPUT_PULLUP);
   enableInterrupt(pinA, reader, CHANGE);
+
+  lcd.setCursor(7, 1);
+  lcd.print("OpenPSU");
+  lcd.setCursor(5, 2);
+  lcd.print("Harry Lisby");
+  delay(2000);
+  lcd.clear();
+  writeLCD(0);
 }
 
-void pollAlertReadyPin() {
-  for (uint32_t i = 0; i<100000; i++)
-    if (!digitalRead(alertReadyPin)) return;
-    Serial.println("Failed to wait for AlertReadyPin, it's stuck high!");
-}
+//PSUMAINROUTINE////////////////////////////////////////////////////////////////
 
-//parameter should be (pinP,oldButtonState)
-int buttonWatcher(int buttonPin, bool oldState){
-  byte buttonState = digitalRead(buttonPin);
-  if (buttonState != oldState){
-    if (millis() - buttonPressTime >= debounceTime){ // debounce adjusted at 10ms
-      buttonPressTime = millis();  // when we closed the switch
-      oldState = buttonState;  // remember for next time
-      if (buttonState == LOW){
-        Serial.println("Button pressed"); // DEBUGGING: print that button has been closed
-        buttonPressed = 1;
-      }
-      else {
-        Serial.println("Button released"); // DEBUGGING: print that button has been opened
-        buttonPressed = 0;
-      }
-    }
-  }
-  return buttonPressed;
-}
-
-void loop(void) {
-  // The below method sets the mux for channel one [volts]
-  adc.setMultiplexer(ADS1115_MUX_P0_NG);
-  adc.triggerConversion();
-  pollAlertReadyPin();
-  currentVoltage = 6.035*(adc.getMilliVolts(false));
-  // The below method sets the mux for channel two [current]
-  adc.setMultiplexer(ADS1115_MUX_P1_NG);
-  adc.triggerConversion();
-  pollAlertReadyPin();
-  currentCurrent = (adc.getMilliVolts(false));
+void psuHandle(){
+  currentVoltage = adcRead(0,voltsFactor); // This method sets the mux for channel one [volts]
+  currentCurrent = adcRead(1,currentFactor);  // This method sets the mux for channel two [current]
 
   if(currentCurrent>targetCurrent){     //If current is above the setpoint
     psuPID.SetTunings(kpI, kiI, kdI);
@@ -158,72 +389,44 @@ void loop(void) {
     mode = "CV";
   }
 
-  if(digitalRead(pinP)==LOW){
-    paramenterSelect=!paramenterSelect;
-    Serial.println(paramenterSelect);
-    delay(500);  //Find a way to antibounce and prevent spam detection
-  }
-  if((increaseFlag)&&!(paramenterSelect)){
-    targetVoltage+=100;
-    increaseFlag=false;
-    Serial.println(targetVoltage);
-  }else if((increaseFlag)&&(paramenterSelect)){
-    targetCurrent+=10;
-    increaseFlag=false;
-    Serial.println(targetCurrent);
-  }
-  if((decreaseFlag)&&!(paramenterSelect)){
-    targetVoltage-=100;
-    decreaseFlag=false;
-    Serial.println(targetVoltage);
-  }else if((decreaseFlag)&&(paramenterSelect)){
-    targetCurrent-=10;
-    decreaseFlag=false;
-    Serial.println(targetCurrent);
-  }
-
   psuPID.Compute();
   voltsDigital+=Output;                 //Sums PID output to current output
   voltsDigital=constrain(voltsDigital, 0, 4095);
   dac.setVoltage(voltsDigital, false);
+}
 
-  if((millis()-lastTime)>=500){
-    lastTime=millis();
-    //Uncomment next section for serial debugging
+//MENUHANDLER///////////////////////////////////////////////////////////////////
 
-    Serial.print(voltsDigital);Serial.println(": ");
-    //Serial.print(currentVoltage); Serial.print(": ");
-    //Serial.println(Output); //Serial.print(": ");
-    //Serial.print(currentCurrent); Serial.println();
-    //Serial.println(encoderPos);
-    //Serial.println(digitalRead(pinP));
-
-    //lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("OpenPSU - HarryLisby");
-    lcd.setCursor(0, 1);
-    lcd.print("Vt: ");
-    lcd.print(targetVoltage/1000);
-    lcd.print("V  ");
-    lcd.setCursor(10, 1);
-    lcd.print("It: ");
-    lcd.print(targetCurrent/1000);
-    lcd.print("A ");
-    lcd.setCursor(0, 2);
-    lcd.print("V: ");
-    lcd.print(currentVoltage/1000);
-    lcd.print("V  ");
-    lcd.setCursor(11, 2);
-    lcd.print("I: ");
-    lcd.print(currentCurrent/1000);
-    lcd.print("A ");
-    lcd.setCursor(0, 3);
-    lcd.print("P: ");
-    lcd.print(((currentVoltage/1000)*(currentCurrent/1000)));
-    lcd.print("W  ");
-    lcd.setCursor(11, 3);
-    lcd.print("M: ");
-    lcd.print(mode);
-
+void menuHandle(){
+  incrementing=pendingIncrements();
+  if((incrementing!=0)&&!inMod){
+    if(incrementing>0)currentMenu++;
+    if(incrementing<0)currentMenu--;
+    if(currentMenu>currentMenuQuantity)currentMenu=0;
+    if(currentMenu<=(-1))currentMenu=currentMenuQuantity;
+    writeLCD(currentMenu);
+    Serial.println("Menu changed "+String(incrementing)+" "+String(currentMenu));
+  }else if((incrementing!=0)&&inMod){
+    pendingAction=true;
+    writeLCD(currentMenu);
+    Serial.println("Modifying submenu " + String(subMenuIndex));
   }
+
+  if(buttonRead()){
+    buttonPress=true;
+    writeLCD(currentMenu);
+    Serial.println("Button read");
+  }
+  if((millis()-lastTime)>=1000){
+    writeLCD(currentMenu);
+    lastTime=millis();
+    serialDebugging();
+  }
+}
+
+//LOOP//////////////////////////////////////////////////////////////////////////
+
+void loop(void) {
+  psuHandle();
+  menuHandle();
 }
