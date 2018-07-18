@@ -506,8 +506,4 @@ void menuHandle(){
 void loop(void) {
   psuHandle();
   menuHandle();
-  /*if(firstTime){
-    dac.setVoltage(0, false);
-    firstTime=false;
-  }*/
 }
