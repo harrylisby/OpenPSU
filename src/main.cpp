@@ -76,7 +76,7 @@ float detectedTemp=0;
 #define fanOut 11
 
 //Calibration System
-float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=2.4093; //This values should be written and read to EEPROM later
+float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=1;//2.4093; //This values should be written and read to EEPROM later
 bool oneTime=true;
 
 //INPUTHANDLER//////////////////////////////////////////////////////////////////
