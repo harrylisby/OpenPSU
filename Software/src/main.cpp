@@ -238,7 +238,7 @@ void menu1(){ //CAL MENU
   }
 }
 
-void menu2(){  //PID MENU
+void menu2(){ //PID MENU
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
@@ -317,7 +317,7 @@ void menu2(){  //PID MENU
   }
 }
 
-void menu3(){ //MAIN MENU
+void menu3(){ //TEST MENU
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
@@ -358,6 +358,66 @@ void menu3(){ //MAIN MENU
   lcd.print("Mea. Temp: ");
   lcd.print(detectedTemp);
   lcd.print("  ");
+
+  if(subMenuIndex==1){
+    lcd.setCursor(0,1);
+    lcd.blink();
+  }else if(subMenuIndex==2){
+    lcd.setCursor(0,2);
+    lcd.blink();
+  }else{
+    lcd.noBlink();
+  }
+}
+
+void menu4(){ //BATTERY CHARGER
+  if(pendingAction||buttonPress){
+    if(buttonPress){
+      subMenuIndex++;
+      if(subMenuIndex>2)subMenuIndex=0;
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      if(subMenuIndex==1||subMenuIndex==2){
+        inMod=true;
+      }else{
+        inMod=false;
+      }
+    }
+    buttonPress=false;
+    if(pendingAction){
+      if((incrementing!=0)&&subMenuIndex==1){
+        currentBatteryType++;
+        incrementing=0;
+        //Serial.println("Changed battery type to: " + batteryType[currentBatteryType] );
+      }else if((incrementing!=0)&&subMenuIndex==2){
+        maximumChargeCurrent+=10*incrementing;
+        incrementing=0;
+      }else if(subMenuIndex==0){
+        subMenuIndex=0;
+        inMod=false;
+        targetCurrent=maximumChargeCurrent;
+        //Serial.println("Exiting submenu");
+        lcd.noCursor();
+      }
+    }
+  }
+  //lcd.setCursor(0, 0);
+  //lcd.print("OpenPSU - HarryLisby");
+  lcd.setCursor(0, 0);
+  lcd.print("Battery Charger");
+  lcd.setCursor(0, 1);
+  lcd.print("Type: ");
+  lcd.print(batteryType[currentBatteryType]);
+  lcd.setCursor(0, 2);
+  lcd.print("Max I: ");
+  lcd.print(maximumChargeCurrent);
+
+  /*
+
+  FUNCTIONS NEEDED TO BE ADDED IN HERE:
+    - Confirm start of charge
+    - Show current values and battery %
+
+  */
 
   if(subMenuIndex==1){
     lcd.setCursor(0,1);

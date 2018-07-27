@@ -36,7 +36,7 @@ double debounceLastTime=0;
 int prevEncoderPos=0;
 
 //Menu System
-byte currentMenuQuantity=3;
+byte currentMenuQuantity=4;
 int8_t currentMenu=0;
 bool pendingAction=false;
 bool inMod=false,buttonPress=false;
@@ -61,3 +61,11 @@ float detectedTemp=0;
 //Calibration System
 float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=1;//2.4093; //This values should be written and read to EEPROM later
 bool oneTime=true, calibrationConfirmed=false;
+
+//Battery charger System
+String batteryType[3]={"Li-Ion","Lead-Acid","Ni-Cd"};
+float mininmumVoltage[3]={3.00,1.90,1.10};
+float maximumVoltage[3]={4.20,2.30,1.55};
+int numberOfCells=1;
+byte currentBatteryType=0;
+float maximumChargeCurrent;
