@@ -416,6 +416,7 @@ void menu4(){ //BATTERY CHARGER
   FUNCTIONS NEEDED TO BE ADDED IN HERE:
     - Confirm start of charge
     - Show current values and battery %
+    - Add menu limits so no matrix
 
   */
 
