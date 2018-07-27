@@ -444,6 +444,9 @@ void writeLCD(int menuIndex){
     case 3:
       menu3();
       break;
+    case 4:
+      menu4();
+      break;
   }
 }
 
