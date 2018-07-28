@@ -275,10 +275,7 @@ void menu2(){ //PID MENU
         inMod=false;
         if(oneTime){
           oneTime=false;
-          calValues();
-          Serial.println("VF: "+String(voltsFactor));
-          Serial.println("IF: "+String(currentFactor));
-          Serial.println("Exiting submenu");
+          Serial.println("Changed PID tunnings");
           lcd.noCursor();
         }
       }
@@ -417,6 +414,7 @@ void menu4(){ //BATTERY CHARGER
     - Confirm start of charge
     - Show current values and battery %
     - Add menu limits so no matrix
+    - extra: voltage is still lost in menus switching
 
   */
 
@@ -520,6 +518,14 @@ void psuHandle(){
   currentVoltage = adcRead(0,voltsFactor); // This method sets the mux for channel one [volts]
   currentCurrent = adcRead(1,currentFactor);  // This method sets the mux for channel two [current]
 
+  if(currentCurrent>overCurrentLimit){
+    dac.setVoltage(0,false);
+    targetVoltage=0;
+    targetCurrent=0;
+    lcd.setCursor(0, 2);
+    lcd.print("OVERCURRENTALERT");
+  }
+
   if(currentCurrent>targetCurrent){     //If current is above the setpoint
     psuPID.SetTunings(kpI, kiI, kdI);
     Input = currentCurrent;
@@ -566,7 +572,7 @@ void menuHandle(){
 //TEMPSYSTEM////////////////////////////////////////////////////////////////////
 
 void tempSystem(){
-  fanSpeed=map(detectedTemp,20,55,30,255);
+  fanSpeed=map(currentCurrent,0,3000,50,255);
   fanSpeed=constrain(fanSpeed, 30, 255);
   analogWrite(fanOut,fanSpeed);
   Serial.println(fanSpeed);

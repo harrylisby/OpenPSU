@@ -52,6 +52,7 @@ float currentVoltage = 0, currentCurrent = 0;
 double voltsDigital = 0;
 bool runOnce=true, canChange=true;
 int32_t lastTime;
+float overCurrentLimit = 4500; //units: mA
 
 //Temperature System
 int fanSpeed=0;
@@ -59,7 +60,7 @@ float detectedTemp=0;
 #define fanOut 11
 
 //Calibration System
-float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=1;//2.4093; //This values should be written and read to EEPROM later
+float calVoltage, calCurrent, voltsFactor=5.7500, currentFactor=1;//2.4093; //This values should be written and read to EEPROM later
 bool oneTime=true, calibrationConfirmed=false;
 
 //Battery charger System
