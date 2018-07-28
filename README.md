@@ -16,5 +16,23 @@ OpenPSU is a digitally controlled linear power supply developed by Harry Lisby
 
   Also uses de PID_v1 library which allows fast transition between set voltages,
   working modes and changing loads [output stability].
-
+  
 ********************************************************************************
+# FEATURES
+  - Regular power supply with CV/CI/CP modes.
+  - In-System calibration
+  - In-System PID tunnings
+  - Battery charging [per type]
+  - Every system variable is tweakable
+  - System shutdown if over current is reached
+********************************************************************************
+# TODO LIST
+  - Create hardware diagrams
+  - Upload renders of CAD
+  - Video demonstration
+  - Better current sensing module
+  
+********************************************************************************
+# EXTRA PICTURES
+![alt text](https://github.com/harrylisby/OpenPSU/blob/feature/batteryCharger/Images/Back.png)
+![alt text](https://github.com/harrylisby/OpenPSU/blob/feature/batteryCharger/Images/Front.png)
