@@ -15,64 +15,7 @@ working modes and changing loads [output stability].
 
 *******************************************************************************/
 
-#include <Arduino.h>
-#include <Wire.h>
-#include <Adafruit_MCP4725.h>
-#include <ADS1115.h>
-#include "PID_v1.h"
-#include "LiquidCrystal_I2C.h"
-#include "EnableInterrupt.h"
-
-//LCD start
-LiquidCrystal_I2C lcd(0x27,16,4);
-
-//DAC/ADC Start
-Adafruit_MCP4725 dac;
-ADS1115 adc(0x48);
-
-//PID_v1
-double Setpoint, Input, Output;
-double kpV=0.2245, kiV=0.2500,kdV=0.0000;
-double kpI=5.7500, kiI=1.5000,kdI=0.0000; //20.7500 4.5000
-PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
-
-bool firstTime =true;
-
-//Encoder configuration
-#define pinA 2
-#define pinB 3
-#define pinP 5
-volatile int16_t encoderPos,incrementAmount,decreaseAmount;
-bool newRead,lastRead,increaseFlag,decreaseFlag,paramenterSelect;
-byte oldButtonState = HIGH;  // assume switch open because of pull-up resistor
-const unsigned long debounceTime = 10;  // milliseconds
-unsigned long buttonPressTime;  // when the switch last changed state
-bool buttonPressed = 0; // a flag variable
-bool debounceFlag=true;
-double debounceLastTime=0;
-int prevEncoderPos=0;
-
-//Menu System
-byte currentMenuQuantity=2;
-int8_t currentMenu=0;
-bool pendingAction=false;
-bool inMod=false,buttonPress=false;
-String mode="CV";
-int menu0ParamTracker=0;
-int incrementing=0;
-int subMenuIndex;
-
-//Analog-Digital system
-#define alertReadyPin 4
-float targetVoltage = 0, targetCurrent = 0;
-float currentVoltage = 0, currentCurrent = 0;
-double voltsDigital = 0;
-bool runOnce=true, canChange=true;
-int32_t lastTime;
-
-//Calibration System
-float calVoltage, calCurrent, voltsFactor=5.7583, currentFactor=2.4093; //This values should be written and read to EEPROM later
-bool oneTime=true;
+#include <variables.h>
 
 //INPUTHANDLER//////////////////////////////////////////////////////////////////
 
@@ -230,7 +173,6 @@ void menu0(){ //MAIN MENU
   }else{
     lcd.noBlink();
   }
-
 }
 
 void menu1(){ //CAL MENU
@@ -248,20 +190,22 @@ void menu1(){ //CAL MENU
     buttonPress=false;
     if(pendingAction){
       if((incrementing!=0)&&subMenuIndex==1){
-        targetVoltage=1000;
-        targetCurrent=1000;
+        //targetVoltage=1000;
+        //targetCurrent=1000;
         calVoltage+=10*incrementing;
         incrementing=0;
         //Serial.println("CalVolts incremented");
       }else if((incrementing!=0)&&subMenuIndex==2){
         calCurrent+=incrementing;
         incrementing=0;
+        calibrationConfirmed=true;
         //Serial.println("CalAmps incremented");
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
-        if(oneTime){
+        if(oneTime&&calibrationConfirmed){
           oneTime=false;
+          calibrationConfirmed=false;
           calValues();
           Serial.println("VF: "+String(voltsFactor));
           Serial.println("IF: "+String(currentFactor));
@@ -294,7 +238,7 @@ void menu1(){ //CAL MENU
   }
 }
 
-void menu2(){  //PID MENU
+void menu2(){ //PID MENU
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
@@ -331,10 +275,7 @@ void menu2(){  //PID MENU
         inMod=false;
         if(oneTime){
           oneTime=false;
-          calValues();
-          Serial.println("VF: "+String(voltsFactor));
-          Serial.println("IF: "+String(currentFactor));
-          Serial.println("Exiting submenu");
+          Serial.println("Changed PID tunnings");
           lcd.noCursor();
         }
       }
@@ -373,6 +314,121 @@ void menu2(){  //PID MENU
   }
 }
 
+void menu3(){ //TEST MENU
+  if(pendingAction||buttonPress){
+    if(buttonPress){
+      subMenuIndex++;
+      if(subMenuIndex>2)subMenuIndex=0;
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      if(subMenuIndex==1||subMenuIndex==2){
+        inMod=true;
+      }else{
+        inMod=false;
+      }
+    }
+    buttonPress=false;
+    if(pendingAction){
+      if((incrementing!=0)&&subMenuIndex==1){
+        fanSpeed+=5*incrementing;
+        incrementing=0;
+        //Serial.println("Volts incremented");
+      }else if((incrementing!=0)&&subMenuIndex==2){
+        detectedTemp+=0.10*incrementing;
+        //Serial.println("Amps incremented");
+      }else if(subMenuIndex==0){
+        subMenuIndex=0;
+        inMod=false;
+        //Serial.println("Exiting submenu");
+        lcd.noCursor();
+      }
+    }
+  }
+  //lcd.setCursor(0, 0);
+  //lcd.print("OpenPSU - HarryLisby");
+  lcd.setCursor(0, 0);
+  lcd.print("Testing Menu");
+  lcd.setCursor(0, 1);
+  lcd.print("Fan Speed: ");
+  lcd.print(fanSpeed);
+  lcd.print("  ");
+  lcd.setCursor(0, 2);
+  lcd.print("Mea. Temp: ");
+  lcd.print(detectedTemp);
+  lcd.print("  ");
+
+  if(subMenuIndex==1){
+    lcd.setCursor(0,1);
+    lcd.blink();
+  }else if(subMenuIndex==2){
+    lcd.setCursor(0,2);
+    lcd.blink();
+  }else{
+    lcd.noBlink();
+  }
+}
+
+void menu4(){ //BATTERY CHARGER
+  if(pendingAction||buttonPress){
+    if(buttonPress){
+      subMenuIndex++;
+      if(subMenuIndex>2)subMenuIndex=0;
+      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
+      if(subMenuIndex==1||subMenuIndex==2){
+        inMod=true;
+      }else{
+        inMod=false;
+      }
+    }
+    buttonPress=false;
+    if(pendingAction){
+      if((incrementing!=0)&&subMenuIndex==1){
+        currentBatteryType++;
+        incrementing=0;
+        //Serial.println("Changed battery type to: " + batteryType[currentBatteryType] );
+      }else if((incrementing!=0)&&subMenuIndex==2){
+        maximumChargeCurrent+=10*incrementing;
+        incrementing=0;
+      }else if(subMenuIndex==0){
+        subMenuIndex=0;
+        inMod=false;
+        targetCurrent=maximumChargeCurrent;
+        //Serial.println("Exiting submenu");
+        lcd.noCursor();
+      }
+    }
+  }
+  //lcd.setCursor(0, 0);
+  //lcd.print("OpenPSU - HarryLisby");
+  lcd.setCursor(0, 0);
+  lcd.print("Battery Charger");
+  lcd.setCursor(0, 1);
+  lcd.print("Type: ");
+  lcd.print(batteryType[currentBatteryType]);
+  lcd.setCursor(0, 2);
+  lcd.print("Max I: ");
+  lcd.print(maximumChargeCurrent);
+
+  /*
+
+  FUNCTIONS NEEDED TO BE ADDED IN HERE:
+    - Confirm start of charge
+    - Show current values and battery %
+    - Add menu limits so no matrix
+    - extra: voltage is still lost in menus switching
+
+  */
+
+  if(subMenuIndex==1){
+    lcd.setCursor(0,1);
+    lcd.blink();
+  }else if(subMenuIndex==2){
+    lcd.setCursor(0,2);
+    lcd.blink();
+  }else{
+    lcd.noBlink();
+  }
+}
+
 void writeLCD(int menuIndex){
   switch(menuIndex){
     case 0:
@@ -383,6 +439,12 @@ void writeLCD(int menuIndex){
       break;
     case 2:
       menu2();
+      break;
+    case 3:
+      menu3();
+      break;
+    case 4:
+      menu4();
       break;
   }
 }
@@ -431,12 +493,15 @@ void setup(void) {
   psuPID.SetSampleTime(1);
   psuPID.SetMode(AUTOMATIC);
 
-  dac.setVoltage(500,false); //Start with output low
+  dac.setVoltage(0,false); //Start with output low
 
   pinMode(pinA,INPUT_PULLUP);
   pinMode(pinB, INPUT_PULLUP);
   pinMode(pinP,INPUT_PULLUP);
   enableInterrupt(pinA, reader, CHANGE);
+  pinMode(fanOut,OUTPUT);
+
+  analogWrite(fanOut, 255);
 
   lcd.setCursor(7, 1);
   lcd.print("OpenPSU");
@@ -452,6 +517,14 @@ void setup(void) {
 void psuHandle(){
   currentVoltage = adcRead(0,voltsFactor); // This method sets the mux for channel one [volts]
   currentCurrent = adcRead(1,currentFactor);  // This method sets the mux for channel two [current]
+
+  if(currentCurrent>overCurrentLimit){
+    dac.setVoltage(0,false);
+    targetVoltage=0;
+    targetCurrent=0;
+    lcd.setCursor(0, 2);
+    lcd.print("ERROR: OVER CURRENT!");
+  }
 
   if(currentCurrent>targetCurrent){     //If current is above the setpoint
     psuPID.SetTunings(kpI, kiI, kdI);
@@ -494,11 +567,15 @@ void menuHandle(){
     writeLCD(currentMenu);
     Serial.println("Button read");
   }
-  if((millis()-lastTime)>=1000){
-    writeLCD(currentMenu);
-    lastTime=millis();
-    serialDebugging();
-  }
+}
+
+//TEMPSYSTEM////////////////////////////////////////////////////////////////////
+
+void tempSystem(){
+  fanSpeed=map(currentCurrent,0,3000,50,255);
+  fanSpeed=constrain(fanSpeed, 30, 255);
+  analogWrite(fanOut,fanSpeed);
+  Serial.println(fanSpeed);
 }
 
 //LOOP//////////////////////////////////////////////////////////////////////////
@@ -506,4 +583,12 @@ void menuHandle(){
 void loop(void) {
   psuHandle();
   menuHandle();
+
+  //The next lines only happen every one second
+  if((millis()-lastTime)>=1000){
+    writeLCD(currentMenu);
+    lastTime=millis();
+    serialDebugging();
+    tempSystem();
+  }
 }
