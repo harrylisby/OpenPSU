@@ -523,7 +523,7 @@ void psuHandle(){
     targetVoltage=0;
     targetCurrent=0;
     lcd.setCursor(0, 2);
-    lcd.print("OVERCURRENTALERT");
+    lcd.print("ERROR: OVER CURRENT!");
   }
 
   if(currentCurrent>targetCurrent){     //If current is above the setpoint

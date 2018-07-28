@@ -16,7 +16,7 @@ ADS1115 adc(0x48);
 //PID_v1
 double Setpoint, Input, Output;
 double kpV=0.2245, kiV=0.2500,kdV=0.0000;
-double kpI=5.7500, kiI=1.5000,kdI=0.0000; //20.7500 4.5000
+double kpI=1.0000, kiI=0.2500,kdI=0.0000; //5.7500 1.5000 
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 
 bool firstTime =true;
