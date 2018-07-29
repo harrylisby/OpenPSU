@@ -101,9 +101,18 @@ int adcRead(byte channel,double scaler = 1){
 
 void calValues(void){
   //ADD EEPROM FUNCTIONALITY
+  currentVoltage = adcRead(0,1);
+  currentCurrent = adcRead(1,1);
   voltsFactor = calVoltage/currentVoltage;
   currentFactor = calCurrent/currentCurrent;
 
+}
+
+//BATTERYCHARGERMODULE//////////////////////////////////////////////////////////
+
+void batteryChargerModule(float lowVolts, float highVolts){
+  //print new charging menus
+  //actually charge the batts
 }
 
 //MENUSYSTEM////////////////////////////////////////////////////////////////////
@@ -368,12 +377,12 @@ void menu3(){ //TEST MENU
 }
 
 void menu4(){ //BATTERY CHARGER
+  bool chargeConfirm=false;
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
-      if(subMenuIndex>2)subMenuIndex=0;
-      //Serial.println("SubMenuIndex: "+String(subMenuIndex));
-      if(subMenuIndex==1||subMenuIndex==2){
+      if(subMenuIndex>4)subMenuIndex=0;
+      if(subMenuIndex==1||subMenuIndex==4){
         inMod=true;
       }else{
         inMod=false;
@@ -383,10 +392,23 @@ void menu4(){ //BATTERY CHARGER
     if(pendingAction){
       if((incrementing!=0)&&subMenuIndex==1){
         currentBatteryType++;
+        if(currentBatteryType>2)currentBatteryType=0;
         incrementing=0;
         //Serial.println("Changed battery type to: " + batteryType[currentBatteryType] );
       }else if((incrementing!=0)&&subMenuIndex==2){
         maximumChargeCurrent+=10*incrementing;
+        if(maximumChargeCurrent<0)maximumChargeCurrent=0;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==3){
+        maximumChargeCurrent+=100*incrementing;
+        if(maximumChargeCurrent<0)maximumChargeCurrent=0;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==4){
+        if(!chargeConfirm){
+          chargeConfirm=true;
+        }else{
+          chargeConfirm=false;
+        }
         incrementing=0;
       }else if(subMenuIndex==0){
         subMenuIndex=0;
@@ -394,11 +416,13 @@ void menu4(){ //BATTERY CHARGER
         targetCurrent=maximumChargeCurrent;
         //Serial.println("Exiting submenu");
         lcd.noCursor();
+        if(chargeConfirm){
+          batteryChargerModule(minimumVoltage[currentBatteryType],maximumVoltage[currentBatteryType]);
+        }
       }
     }
   }
-  //lcd.setCursor(0, 0);
-  //lcd.print("OpenPSU - HarryLisby");
+
   lcd.setCursor(0, 0);
   lcd.print("Battery Charger");
   lcd.setCursor(0, 1);
@@ -411,9 +435,7 @@ void menu4(){ //BATTERY CHARGER
   /*
 
   FUNCTIONS NEEDED TO BE ADDED IN HERE:
-    - Confirm start of charge
     - Show current values and battery %
-    - Add menu limits so no matrix
     - extra: voltage is still lost in menus switching
 
   */
@@ -424,8 +446,27 @@ void menu4(){ //BATTERY CHARGER
   }else if(subMenuIndex==2){
     lcd.setCursor(0,2);
     lcd.blink();
+    lcd.setCursor(9,2);
+    lcd.cursor();
+  }else if(subMenuIndex==3){
+    lcd.setCursor(0,2);
+    lcd.blink();
+    lcd.setCursor(8,2);
+    lcd.cursor();
+  }else if(subMenuIndex==4){
+    lcd.setCursor(0, 3);
+    lcd.print("Confirm? ");
+    lcd.print(" Yes  No");
+    if(!chargeConfirm){
+      lcd.setCursor(9, 3);
+      lcd.blink();
+    }else{
+      lcd.setCursor(14, 3);
+      lcd.blink();
+    }
   }else{
     lcd.noBlink();
+    lcd.noCursor();
   }
 }
 
@@ -454,12 +495,11 @@ void writeLCD(int menuIndex){
 void serialDebugging(void){
   //Uncomment next section for serial debugging
   //depending on the data you want to get
-  //Serial.print(voltsDigital);Serial.print(": ");
-  Serial.print(currentVoltage); Serial.print(": ");
-  //Serial.println(Output); //Serial.println(": ");
-  Serial.print(currentCurrent); Serial.println();
-  //Serial.println(encoderPos);
-  //Serial.println(digitalRead(pinP));
+  //Serial.print("Digital Volts: ");Serial.println(voltsDigital);
+  //Serial.print("mV: ");Serial.println(currentVoltage);
+  //Serial.print("mA: "); Serial.println(currentCurrent);
+  //Serial.print("PID output: ");Serial.println(Output);
+  //Serial.print("Encoder: ");Serial.println(encoderPos);
 
 }
 
@@ -489,7 +529,7 @@ void setup(void) {
   targetVoltage = 0;
   targetCurrent = 0;
 
-  psuPID.SetOutputLimits(-511,511);
+  psuPID.SetOutputLimits(PIDMinimum,PIDMaximum);
   psuPID.SetSampleTime(1);
   psuPID.SetMode(AUTOMATIC);
 
@@ -536,6 +576,14 @@ void psuHandle(){
     Input = currentVoltage;
     Setpoint = targetVoltage;
     mode = "CV";
+  }
+
+  if(previousVoltage!=targetVoltage||previousCurrent!=targetCurrent){
+    previousVoltage=targetVoltage;
+    previousCurrent=targetCurrent;
+    psuPID.SetOutputLimits(0.0, 1.0);  // Forces minimum up to 0.0
+    psuPID.SetOutputLimits(-1.0, 0.0);  // Forces maximum down to 0.0
+    psuPID.SetOutputLimits(PIDMinimum, PIDMaximum);  // Set the limits back to normal
   }
 
   psuPID.Compute();

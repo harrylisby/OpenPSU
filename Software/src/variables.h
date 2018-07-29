@@ -16,8 +16,10 @@ ADS1115 adc(0x48);
 //PID_v1
 double Setpoint, Input, Output;
 double kpV=0.2245, kiV=0.2500,kdV=0.0000;
-double kpI=1.0000, kiI=0.2500,kdI=0.0000; //5.7500 1.5000 
+double kpI=1.0000, kiI=0.2500,kdI=0.0000; //5.7500 1.5000
 PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
+int PIDMinimum=-511,PIDMaximum=511;
+int previousVoltage=0, previousCurrent=0;
 
 bool firstTime =true;
 
@@ -65,7 +67,7 @@ bool oneTime=true, calibrationConfirmed=false;
 
 //Battery charger System
 String batteryType[3]={"Li-Ion","Lead-Acid","Ni-Cd"};
-float mininmumVoltage[3]={3.00,1.90,1.10};
+float minimumVoltage[3]={3.00,1.90,1.10};
 float maximumVoltage[3]={4.20,2.30,1.55};
 int numberOfCells=1;
 byte currentBatteryType=0;
