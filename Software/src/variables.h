@@ -38,7 +38,7 @@ double debounceLastTime=0;
 int prevEncoderPos=0;
 
 //Menu System
-byte currentMenuQuantity=4;
+byte currentMenuQuantity=5;
 int8_t currentMenu=0;
 bool pendingAction=false;
 bool inMod=false,buttonPress=false;
@@ -46,6 +46,7 @@ String mode="CV";
 int menu0ParamTracker=0;
 int incrementing=0;
 int subMenuIndex;
+bool chargeConfirm=false;
 
 //Analog-Digital system
 #define alertReadyPin 4
@@ -66,7 +67,7 @@ float calVoltage, calCurrent, voltsFactor=5.7500, currentFactor=1;//2.4093; //Th
 bool oneTime=true, calibrationConfirmed=false;
 
 //Battery charger System
-String batteryType[3]={"Li-Ion","Lead-Acid","Ni-Cd"};
+String batteryType[3]={"Li-Ion    ","Lead-Acid","Ni-Cd    "};
 float minimumVoltage[3]={3.00,1.90,1.10};
 float maximumVoltage[3]={4.20,2.30,1.55};
 int numberOfCells=1;

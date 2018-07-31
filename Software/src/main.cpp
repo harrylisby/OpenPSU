@@ -110,9 +110,13 @@ void calValues(void){
 
 //BATTERYCHARGERMODULE//////////////////////////////////////////////////////////
 
-void batteryChargerModule(float lowVolts, float highVolts){
-  //print new charging menus
-  //actually charge the batts
+void batteryChargerModule(float battLowVolts, float battHighVolts, float battMaxCurrent){
+  //todo: a way out of here
+  targetVoltage=battHighVolts;
+  targetCurrent=battMaxCurrent;
+  currentMenu=5;
+  lcd.clear();
+  Serial.println(String(battLowVolts) + "-" + String(battHighVolts));
 }
 
 //MENUSYSTEM////////////////////////////////////////////////////////////////////
@@ -251,9 +255,10 @@ void menu2(){ //PID MENU
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
-      if(subMenuIndex>6)subMenuIndex=0;
+      const byte menu2Mods=6;
+      if(subMenuIndex>menu2Mods)subMenuIndex=0;
       //Serial.println("SubMenuIndex: "+String(subMenuIndex));
-      if(subMenuIndex>=1 && subMenuIndex<=6){
+      if(subMenuIndex>=1 && subMenuIndex<=menu2Mods){
         inMod=true;
       }else{
         inMod=false;
@@ -377,12 +382,12 @@ void menu3(){ //TEST MENU
 }
 
 void menu4(){ //BATTERY CHARGER
-  bool chargeConfirm=false;
   if(pendingAction||buttonPress){
     if(buttonPress){
       subMenuIndex++;
-      if(subMenuIndex>4)subMenuIndex=0;
-      if(subMenuIndex==1||subMenuIndex==4){
+      const byte menu4Mods=5;
+      if(subMenuIndex>menu4Mods)subMenuIndex=0;
+      if(subMenuIndex>=1 && subMenuIndex<=menu4Mods){
         inMod=true;
       }else{
         inMod=false;
@@ -404,6 +409,10 @@ void menu4(){ //BATTERY CHARGER
         if(maximumChargeCurrent<0)maximumChargeCurrent=0;
         incrementing=0;
       }else if((incrementing!=0)&&subMenuIndex==4){
+        numberOfCells+=incrementing;
+        if(numberOfCells>9)numberOfCells=1;
+        incrementing=0;
+      }else if((incrementing!=0)&&subMenuIndex==5){
         if(!chargeConfirm){
           chargeConfirm=true;
         }else{
@@ -413,11 +422,14 @@ void menu4(){ //BATTERY CHARGER
       }else if(subMenuIndex==0){
         subMenuIndex=0;
         inMod=false;
-        targetCurrent=maximumChargeCurrent;
+        //targetCurrent=maximumChargeCurrent;
         //Serial.println("Exiting submenu");
         lcd.noCursor();
         if(chargeConfirm){
-          batteryChargerModule(minimumVoltage[currentBatteryType],maximumVoltage[currentBatteryType]);
+          currentMenu=5;
+          chargeConfirm=false;
+          lcd.clear();
+          batteryChargerModule(minimumVoltage[currentBatteryType],maximumVoltage[currentBatteryType],maximumChargeCurrent);
         }
       }
     }
@@ -430,7 +442,10 @@ void menu4(){ //BATTERY CHARGER
   lcd.print(batteryType[currentBatteryType]);
   lcd.setCursor(0, 2);
   lcd.print("Max I: ");
-  lcd.print(maximumChargeCurrent);
+  lcd.print(maximumChargeCurrent/1000);
+  lcd.setCursor(0, 3);
+  lcd.print("Cells: ");
+  lcd.print(numberOfCells);
 
   /*
 
@@ -446,21 +461,24 @@ void menu4(){ //BATTERY CHARGER
   }else if(subMenuIndex==2){
     lcd.setCursor(0,2);
     lcd.blink();
-    lcd.setCursor(9,2);
+    lcd.setCursor(10,2);
     lcd.cursor();
   }else if(subMenuIndex==3){
     lcd.setCursor(0,2);
     lcd.blink();
-    lcd.setCursor(8,2);
+    lcd.setCursor(9,2);
     lcd.cursor();
   }else if(subMenuIndex==4){
+    lcd.setCursor(0,3);
+    lcd.blink();
+  }else if(subMenuIndex==5){
     lcd.setCursor(0, 3);
     lcd.print("Confirm? ");
     lcd.print(" Yes  No");
-    if(!chargeConfirm){
+    if(chargeConfirm){
       lcd.setCursor(9, 3);
       lcd.blink();
-    }else{
+    }else if(!chargeConfirm){
       lcd.setCursor(14, 3);
       lcd.blink();
     }
@@ -468,6 +486,18 @@ void menu4(){ //BATTERY CHARGER
     lcd.noBlink();
     lcd.noCursor();
   }
+}
+
+void chargingMenu(){
+  lcd.setCursor(0, 0);
+  lcd.print("OpenPSU Charger");
+  lcd.setCursor(0, 2);
+  lcd.print("Charge: ");
+  lcd.print((currentVoltage/targetVoltage)*100);
+  lcd.print("%   ");
+  lcd.setCursor(0, 3);
+  lcd.print("Current: ");
+  lcd.print(currentCurrent/1000);
 }
 
 void writeLCD(int menuIndex){
@@ -487,6 +517,9 @@ void writeLCD(int menuIndex){
     case 4:
       menu4();
       break;
+    case 5:
+      chargingMenu();
+      break;
   }
 }
 
@@ -500,6 +533,7 @@ void serialDebugging(void){
   //Serial.print("mA: "); Serial.println(currentCurrent);
   //Serial.print("PID output: ");Serial.println(Output);
   //Serial.print("Encoder: ");Serial.println(encoderPos);
+  Serial.print("Menu: ");Serial.println(currentMenu);
 
 }
 
@@ -613,7 +647,7 @@ void menuHandle(){
   if(buttonRead()){
     buttonPress=true;
     writeLCD(currentMenu);
-    Serial.println("Button read");
+    Serial.println("Button pressed");
   }
 }
 
@@ -623,7 +657,6 @@ void tempSystem(){
   fanSpeed=map(currentCurrent,0,3000,50,255);
   fanSpeed=constrain(fanSpeed, 30, 255);
   analogWrite(fanOut,fanSpeed);
-  Serial.println(fanSpeed);
 }
 
 //LOOP//////////////////////////////////////////////////////////////////////////
