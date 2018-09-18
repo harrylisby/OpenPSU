@@ -82,13 +82,13 @@ int adcRead(byte channel,double scaler = 1){
       read = scaler*(adc.getMilliVolts(false));
       break;
     case 2:
-      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.setMultiplexer(ADS1115_MUX_P2_NG);
       adc.triggerConversion();
       pollAlertReadyPin();
       read = scaler*(adc.getMilliVolts(false));
       break;
     case 3:
-      adc.setMultiplexer(ADS1115_MUX_P1_NG);
+      adc.setMultiplexer(ADS1115_MUX_P3_NG);
       adc.triggerConversion();
       pollAlertReadyPin();
       read = scaler*(adc.getMilliVolts(false));
@@ -533,7 +533,7 @@ void serialDebugging(void){
   //Serial.print("mA: "); Serial.println(currentCurrent);
   //Serial.print("PID output: ");Serial.println(Output);
   //Serial.print("Encoder: ");Serial.println(encoderPos);
-  Serial.print("Menu: ");Serial.println(currentMenu);
+  //Serial.print("Menu: ");Serial.println(currentMenu);
 
 }
 
@@ -618,6 +618,12 @@ void psuHandle(){
     psuPID.SetOutputLimits(0.0, 1.0);  // Forces minimum up to 0.0
     psuPID.SetOutputLimits(-1.0, 0.0);  // Forces maximum down to 0.0
     psuPID.SetOutputLimits(PIDMinimum, PIDMaximum);  // Set the limits back to normal
+  }
+
+  if(targetVoltage>=13000){
+    digitalWrite(relayOut,LOW);
+  }else{
+    digitalWrite(relayOut,HIGH);
   }
 
   psuPID.Compute();

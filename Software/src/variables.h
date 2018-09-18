@@ -21,6 +21,8 @@ PID psuPID(&Input,&Output,&Setpoint,kpV,kiV,kdV,DIRECT);
 int PIDMinimum=-511,PIDMaximum=511;
 int previousVoltage=0, previousCurrent=0;
 
+//Outputs and misc
+#define relayOut 6
 bool firstTime =true;
 
 //Encoder configuration
@@ -38,7 +40,7 @@ double debounceLastTime=0;
 int prevEncoderPos=0;
 
 //Menu System
-byte currentMenuQuantity=5;
+byte currentMenuQuantity=4;
 int8_t currentMenu=0;
 bool pendingAction=false;
 bool inMod=false,buttonPress=false;
@@ -63,7 +65,7 @@ float detectedTemp=0;
 #define fanOut 11
 
 //Calibration System
-float calVoltage, calCurrent, voltsFactor=5.7500, currentFactor=1;//2.4093; //This values should be written and read to EEPROM later
+float calVoltage, calCurrent, voltsFactor=5.8900, currentFactor=5.9200;//2.4093 V:5.7500; //This values should be written and read to EEPROM later
 bool oneTime=true, calibrationConfirmed=false;
 
 //Battery charger System
